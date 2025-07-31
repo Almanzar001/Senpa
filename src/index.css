@@ -1,0 +1,243 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+    font-variation-settings: normal;
+  }
+
+  body {
+    margin: 0;
+    @apply bg-neutral-50 text-neutral-900 font-sans antialiased;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  }
+
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  /* Mejores estilos para elementos interactivos */
+  button:focus-visible,
+  a:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible {
+    outline: 2px solid #4f8a4f;
+    outline-offset: 2px;
+  }
+
+  /* Smooth scroll para mejor UX */
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+@layer components {
+  /* Sistema de botones mejorado */
+  .btn {
+    @apply inline-flex items-center justify-center font-medium transition-all duration-250 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  
+  .btn-primary {
+    @apply btn bg-primary-600 hover:bg-primary-700 focus:ring-primary-500 text-white shadow-sm hover:shadow-md px-4 py-2.5 rounded-lg;
+  }
+  
+  .btn-secondary {
+    @apply btn bg-verde-seco-600 hover:bg-verde-seco-700 focus:ring-verde-seco-500 text-white shadow-sm hover:shadow-md px-4 py-2.5 rounded-lg;
+  }
+  
+  .btn-outline {
+    @apply btn border-2 border-primary-600 text-primary-600 hover:bg-primary-600 hover:text-white focus:ring-primary-500 px-4 py-2.5 rounded-lg;
+  }
+  
+  .btn-ghost {
+    @apply btn text-neutral-600 hover:bg-neutral-100 focus:ring-neutral-500 px-4 py-2.5 rounded-lg;
+  }
+  
+  .btn-sm {
+    @apply px-3 py-2 text-sm;
+  }
+  
+  .btn-lg {
+    @apply px-6 py-3 text-lg;
+  }
+  
+  /* Sistema de cards mejorado */
+  .card {
+    @apply bg-white rounded-xl border border-neutral-200 shadow-sm transition-all duration-250;
+  }
+  
+  .card-hover {
+    @apply card hover:shadow-lg hover:-translate-y-0.5;
+  }
+  
+  .card-environmental {
+    @apply card hover:shadow-environmental hover:border-primary-200;
+  }
+  
+  /* Layout principal */
+  .dashboard-container {
+    @apply min-h-screen bg-gradient-to-br from-primary-50 via-white to-verde-seco-50;
+  }
+  
+  .dashboard-header {
+    @apply bg-white/80 backdrop-blur-sm border border-neutral-200 rounded-xl shadow-sm;
+  }
+  
+  .dashboard-title {
+    @apply text-2xl lg:text-3xl font-bold text-neutral-900 tracking-tight;
+  }
+  
+  .dashboard-subtitle {
+    @apply text-neutral-600 text-sm lg:text-base;
+  }
+  
+  /* Status indicators */
+  .status-indicator {
+    @apply inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium;
+  }
+  
+  .status-success {
+    @apply status-indicator bg-success-100 text-success-800;
+  }
+  
+  .status-warning {
+    @apply status-indicator bg-warning-100 text-warning-800;
+  }
+  
+  .status-error {
+    @apply status-indicator bg-error-100 text-error-800;
+  }
+  
+  .status-info {
+    @apply status-indicator bg-info-100 text-info-800;
+  }
+  
+  /* Toggle buttons */
+  .toggle-btn {
+    @apply btn flex items-center space-x-2;
+  }
+  
+  .toggle-active {
+    @apply toggle-btn bg-primary-600 text-white shadow-md;
+  }
+  
+  .toggle-inactive {
+    @apply toggle-btn bg-white text-neutral-600 hover:bg-neutral-50 border border-neutral-200;
+  }
+  
+  /* Metrics cards */
+  .metric-card {
+    @apply card p-6 hover:shadow-lg transition-all duration-250;
+  }
+  
+  .metric-value {
+    @apply text-2xl lg:text-3xl font-bold text-neutral-900;
+  }
+  
+  .metric-label {
+    @apply text-sm font-medium text-neutral-600 uppercase tracking-wide;
+  }
+  
+  .metric-change {
+    @apply text-xs font-medium;
+  }
+  
+  .metric-change-positive {
+    @apply metric-change text-success-600;
+  }
+  
+  .metric-change-negative {
+    @apply metric-change text-error-600;
+  }
+}
+
+@layer utilities {
+  /* Tipografía mejorada */
+  .font-display {
+    font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+    font-weight: 700;
+    letter-spacing: -0.025em;
+  }
+  
+  .text-balance {
+    text-wrap: balance;
+  }
+  
+  /* Text shadows sutiles */
+  .text-shadow-sm {
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  }
+  
+  .text-shadow {
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+  
+  /* Backdrop filters */
+  .backdrop-blur-environmental {
+    backdrop-filter: blur(12px) saturate(180%);
+    -webkit-backdrop-filter: blur(12px) saturate(180%);
+  }
+  
+  /* Animaciones suaves */
+  .animate-fade-in {
+    animation: fadeIn 0.3s ease-in-out;
+  }
+  
+  .animate-slide-up {
+    animation: slideUp 0.4s ease-out;
+  }
+  
+  /* Scrollbar personalizado */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: #d4d4d8 #f4f4f5;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: #f4f4f5;
+    border-radius: 3px;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: #d4d4d8;
+    border-radius: 3px;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background-color: #a1a1aa;
+  }
+}
+
+/* Keyframes para animaciones */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
