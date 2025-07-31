@@ -60,7 +60,8 @@ const EnvironmentalTable: React.FC<EnvironmentalTableProps> = ({ cases }) => {
       );
     }
     
-    return filtered;
+    // Reverse order to show most recent cases first (last ingresado primero)
+    return [...filtered].reverse();
   }, [cases, searchTerm]);
 
   const handleChangePage = (_event: unknown, newPage: number) => {
