@@ -11,7 +11,7 @@ function App() {
       {/* Mensaje temporal */}
       <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4">
         <p className="font-bold">🚧 Modo Prueba - Autenticación Deshabilitada</p>
-        <p className="text-sm">Dashboard en modo demo para pruebas de funcionalidad</p>
+        <p className="text-sm">Dashboard en modo demo para pruebas de funcionalidad - v1.1</p>
       </div>
       
       <EnvironmentalDashboard
