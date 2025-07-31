@@ -187,7 +187,7 @@ const WeeklyCases3D: React.FC<WeeklyCases3DProps> = ({ cases }) => {
       const total = payload.reduce((sum: number, entry: any) => sum + entry.value, 0);
       
       return (
-        <div className="bg-white/95 backdrop-blur-md p-4 rounded-xl shadow-2xl border border-neutral-200">
+        <div className="bg-primary-50/95 backdrop-blur-md p-4 rounded-xl shadow-2xl border border-neutral-200">
           <div className="mb-3">
             <h4 className="font-bold text-neutral-800 text-lg">{label}</h4>
             <p className="text-sm text-neutral-600">Total: {total} casos</p>
@@ -249,7 +249,12 @@ const WeeklyCases3D: React.FC<WeeklyCases3DProps> = ({ cases }) => {
                     {totalCases} casos totales
                   </div>
                   <div className="status-info">
-                    {weeklyData.length} semanas analizadas
+                    {weeklyData.length} {weeklyData.length === 1 ? 'semana analizada' : 'semanas analizadas'}
+                    {weeklyData.length > 0 && (
+                      <span className="ml-2 text-xs text-neutral-500">
+                        ({weeklyData[0]?.semana} - {weeklyData[weeklyData.length - 1]?.semana})
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>

@@ -10,6 +10,7 @@ import DemoData from './DemoData';
 import AdvancedFilters, { type FilterOptions } from './AdvancedFilters';
 import FilterSummary from './FilterSummary';
 import ExportButton from './ExportButton';
+import { useFilteredData } from '../hooks/useFilteredData';
 
 interface DashboardProps {
   spreadsheetId: string;
@@ -50,6 +51,7 @@ const Dashboard: React.FC<DashboardProps> = ({ spreadsheetId, apiKey }) => {
     states: [],
     locations: [],
     types: [],
+    provinces: [],
     searchText: ''
   });
 
@@ -64,9 +66,11 @@ const Dashboard: React.FC<DashboardProps> = ({ spreadsheetId, apiKey }) => {
       try {
         const sheetsService = new GoogleSheetsService(apiKey);
         const sheetsData = await sheetsService.getMultipleSheets(spreadsheetId);
+        console.log('Loaded sheets data:', sheetsData);
         setSheets(sheetsData);
         setError(null);
       } catch (err) {
+        console.error('Error loading sheets:', err);
         setError(err instanceof Error ? err.message : 'An error occurred');
       } finally {
         setLoading(false);
@@ -79,6 +83,9 @@ const Dashboard: React.FC<DashboardProps> = ({ spreadsheetId, apiKey }) => {
   const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
     setActiveTab(newValue);
   };
+
+  // Apply filters to the data
+  const filteredSheets = useFilteredData(sheets, filters);
 
   if (loading) {
     return (
@@ -99,6 +106,7 @@ const Dashboard: React.FC<DashboardProps> = ({ spreadsheetId, apiKey }) => {
 
   if (error) {
     // Si hay error, mostrar la demostración con datos de ejemplo
+    console.log('Error loading data, showing demo:', error);
     return <DemoData />;
   }
 
@@ -121,7 +129,7 @@ const Dashboard: React.FC<DashboardProps> = ({ spreadsheetId, apiKey }) => {
               </p>
             </div>
           </div>
-          <ExportButton sheetsData={sheets} filters={filters} />
+          <ExportButton sheetsData={filteredSheets} filters={filters} />
         </div>
 
         {/* View Mode Toggle */}
@@ -155,21 +163,32 @@ const Dashboard: React.FC<DashboardProps> = ({ spreadsheetId, apiKey }) => {
           activeFilters={filters}
         />
 
+        {/* Debug Info */}
+        {(filters.dateFrom || filters.dateTo) && (
+          <div className="mb-4 p-4 bg-yellow-100 border-l-4 border-yellow-500">
+            <h3 className="font-bold">Debug - Filtros Activos:</h3>
+            <p>Fecha desde: {filters.dateFrom || 'No especificada'}</p>
+            <p>Fecha hasta: {filters.dateTo || 'No especificada'}</p>
+            <p>Registros originales: {sheets.reduce((total, sheet) => total + Math.max(0, sheet.data.length - 1), 0)}</p>
+            <p>Registros filtrados: {filteredSheets.reduce((total, sheet) => total + Math.max(0, sheet.data.length - 1), 0)}</p>
+          </div>
+        )}
+
         {/* Filter Summary */}
         <FilterSummary 
           filters={filters}
           totalRecords={sheets.reduce((total, sheet) => total + Math.max(0, sheet.data.length - 1), 0)}
-          filteredRecords={sheets.reduce((total, sheet) => total + Math.max(0, sheet.data.length - 1), 0)}
+          filteredRecords={filteredSheets.reduce((total, sheet) => total + Math.max(0, sheet.data.length - 1), 0)}
         />
 
         {/* Specific Metrics */}
-        <SpecificMetrics sheetsData={sheets} filters={filters} />
+        <SpecificMetrics sheetsData={filteredSheets} filters={filters} />
 
         {/* Operational Summary */}
-        <OperationalSummary sheetsData={sheets} filters={filters} />
+        <OperationalSummary sheetsData={filteredSheets} filters={filters} />
 
         {/* Stats Cards - HORIZONTAL */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8 max-w-6xl mx-auto">
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8 max-w-6xl mx-auto">
           <Card className="bg-gradient-to-r from-blue-500 to-blue-600 text-white">
             <CardContent>
               <div className="flex items-center justify-between">
@@ -188,7 +207,7 @@ const Dashboard: React.FC<DashboardProps> = ({ spreadsheetId, apiKey }) => {
                 <div>
                   <p className="text-green-100">Total Registros</p>
                   <p className="text-3xl font-bold">
-                    {sheets.reduce((total, sheet) => total + Math.max(0, sheet.data.length - 1), 0)}
+                    {filteredSheets.reduce((total, sheet) => total + Math.max(0, sheet.data.length - 1), 0)}
                   </p>
                 </div>
                 <BarChart style={{ fontSize: 48, opacity: 0.8 }} />
@@ -201,7 +220,7 @@ const Dashboard: React.FC<DashboardProps> = ({ spreadsheetId, apiKey }) => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-purple-100">Visualizaciones</p>
-                  <p className="text-3xl font-bold">{sheets.length * 2}</p>
+                  <p className="text-3xl font-bold">{filteredSheets.length * 2}</p>
                 </div>
                 <PieChart style={{ fontSize: 48, opacity: 0.8 }} />
               </div>
@@ -210,7 +229,7 @@ const Dashboard: React.FC<DashboardProps> = ({ spreadsheetId, apiKey }) => {
         </div>
 
         {/* Tabs */}
-        <Card className="bg-white/80 backdrop-blur-sm shadow-xl border-0 max-w-6xl mx-auto">
+        <Card className="bg-primary-50/80 backdrop-blur-sm shadow-xl border-0 max-w-6xl mx-auto">
           <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
             <Tabs
               value={activeTab}
@@ -219,7 +238,7 @@ const Dashboard: React.FC<DashboardProps> = ({ spreadsheetId, apiKey }) => {
               scrollButtons="auto"
               className="px-4"
             >
-              {sheets.map((sheet) => (
+              {filteredSheets.map((sheet) => (
                 <Tab
                   key={sheet.name}
                   label={sheet.name}
@@ -234,7 +253,7 @@ const Dashboard: React.FC<DashboardProps> = ({ spreadsheetId, apiKey }) => {
             </Tabs>
           </Box>
 
-          {sheets.map((sheet, index) => (
+          {filteredSheets.map((sheet, index) => (
             <TabPanel key={sheet.name} value={activeTab} index={index}>
               <div className="space-y-6">
                 <div className="flex items-center justify-between">

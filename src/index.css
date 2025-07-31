@@ -64,14 +64,13 @@
   .btn-sm {
     @apply px-3 py-2 text-sm;
   }
-  
   .btn-lg {
     @apply px-6 py-3 text-lg;
   }
   
   /* Sistema de cards mejorado */
   .card {
-    @apply bg-white rounded-xl border border-neutral-200 shadow-sm transition-all duration-250;
+    @apply bg-primary-50 rounded-xl border border-neutral-200 shadow-sm transition-all duration-250;
   }
   
   .card-hover {
@@ -88,7 +87,7 @@
   }
   
   .dashboard-header {
-    @apply bg-white/80 backdrop-blur-sm border border-neutral-200 rounded-xl shadow-sm;
+    @apply bg-primary-50/80 backdrop-blur-sm border border-neutral-200 rounded-xl shadow-sm;
   }
   
   .dashboard-title {

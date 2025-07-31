@@ -30,17 +30,20 @@ const EnvironmentalMetrics: React.FC<EnvironmentalMetricsProps> = ({
     // Calcular métricas del período anterior para comparación
     if (!filters?.dateFrom) return null;
     
-    const startDate = new Date(filters.dateFrom);
-    const endDate = filters.dateTo ? new Date(filters.dateTo) : new Date();
-    const daysDiff = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-    
+    const startDate = new Date(`${filters.dateFrom}T00:00:00`);
+    const endDate = filters.dateTo ? new Date(`${filters.dateTo}T23:59:59.999`) : new Date();
+    const daysDiff = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+
     const previousStartDate = new Date(startDate);
     previousStartDate.setDate(previousStartDate.getDate() - daysDiff);
-    
+
+    const previousEndDate = new Date(startDate);
+    previousEndDate.setDate(previousEndDate.getDate() - 1);
+
     const previousFilters = {
       ...filters,
       dateFrom: previousStartDate.toISOString().split('T')[0],
-      dateTo: startDate.toISOString().split('T')[0]
+      dateTo: previousEndDate.toISOString().split('T')[0]
     };
     
     return analyticsService.calculateMetrics(cases, previousFilters);

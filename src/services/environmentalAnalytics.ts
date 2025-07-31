@@ -47,17 +47,13 @@ class EnvironmentalAnalyticsService {
   // Analizar y combinar datos de todas las hojas usando numeroCaso
   analyzeSheetsData(sheetsData: SheetData[]): EnvironmentalCase[] {
     this.cases.clear();
-    console.log('🔍 Analizando hojas:', sheetsData.map(s => s.name));
-    console.log('🔍 Total hojas recibidas:', sheetsData.length);
-    sheetsData.forEach((sheet, index) => {
-      console.log(`   Hoja ${index + 1}: "${sheet.name}" con ${sheet.data.length} filas`);
-    });
+    if (sheetsData.length === 0) {
+      return [];
+    }
 
     sheetsData.forEach(sheet => {
       if (sheet.data.length <= 1) return;
       
-      console.log(`📋 Procesando hoja: ${sheet.name}`);
-      console.log(`🔍 Nombre en minúsculas: "${sheet.name.toLowerCase()}"`);
       const headers = sheet.data[0] as string[];
       const rows = sheet.data.slice(1);
       
@@ -81,10 +77,10 @@ class EnvironmentalAnalyticsService {
         h.toLowerCase().includes('municipio') ||
         h.toLowerCase().includes('ubicacion')
       );
-      const tipoActividadCol = headers.findIndex(h => 
-        h.toLowerCase().includes('tipo') && 
-        (h.toLowerCase().includes('actividad') || h.toLowerCase().includes('operacion'))
-      );
+      const tipoActividadCol = headers.findIndex(h => {
+        const hLower = h.toLowerCase();
+        return hLower.includes('tipo') && (hLower.includes('actividad') || hLower.includes('operacion'));
+      });
       const areaTemáticaCol = headers.findIndex(h => 
         h.toLowerCase().includes('area') && h.toLowerCase().includes('tematica')
       );
@@ -117,60 +113,12 @@ class EnvironmentalAnalyticsService {
     });
 
     const finalCases = Array.from(this.cases.values());
-    console.log('📋 Casos finales creados:', finalCases.length);
-    console.log('🔍 DIAGNÓSTICO DETALLADO DE CASOS:');
-    
-    // Resumen detallado de casos
-    let totalIncautaciones = 0;
-    let casosConFecha = 0;
-    let casosSinFecha = 0;
-    let casosConAreaTematica = 0;
-    let casosSinAreaTematica = 0;
-    
-    finalCases.forEach((c, index) => {
-      totalIncautaciones += c.incautaciones.length;
-      
-      // Contar casos con/sin fecha
-      if (c.fecha && c.fecha.trim()) {
-        casosConFecha++;
-      } else {
-        casosSinFecha++;
-        console.log(`⚠️ Caso SIN FECHA: ${c.numeroCaso}`);
-      }
-      
-      // Contar casos con/sin área temática
-      if (c.areaTemática && c.areaTemática.trim()) {
-        casosConAreaTematica++;
-      } else {
-        casosSinAreaTematica++;
-        console.log(`⚠️ Caso SIN ÁREA TEMÁTICA: ${c.numeroCaso}`);
-      }
-      
-      console.log(`📝 Caso ${index + 1}/${finalCases.length}: ${c.numeroCaso}`);
-      console.log(`   📅 Fecha: "${c.fecha}"`);
-      console.log(`   🌿 Área: "${c.areaTemática}"`);
-      console.log(`   📍 Localidad: "${c.localidad}"`);
-      console.log(`   👥 Detenidos: ${c.detenidos}, 🚗 Vehículos: ${c.vehiculosDetenidos}, 📦 Incautaciones: ${c.incautaciones.length}`);
-      if (c.incautaciones.length > 0) {
-        console.log(`   → Incautaciones: ${c.incautaciones.join(', ')}`);
-      }
-      console.log('   ───────────────────────────');
-    });
-    
-    console.log(`📊 RESUMEN TOTAL:`);
-    console.log(`   📋 Total casos: ${finalCases.length}`);
-    console.log(`   📅 Con fecha: ${casosConFecha}`);
-    console.log(`   ❌ Sin fecha: ${casosSinFecha}`);
-    console.log(`   🌿 Con área temática: ${casosConAreaTematica}`);
-    console.log(`   ❌ Sin área temática: ${casosSinAreaTematica}`);
-    console.log(`   📦 Total incautaciones: ${totalIncautaciones}`);
     
     return finalCases;
   }
 
   private analyzeSheetSpecificData(sheetName: string, headers: string[], row: any[], envCase: EnvironmentalCase) {
     const sheetNameLower = sheetName.toLowerCase();
-    console.log(`🔍 analyzeSheetSpecificData - Hoja: "${sheetName}" (lower: "${sheetNameLower}")`);
 
     // Análisis de detenidos
     if (sheetNameLower.includes('detenido') || sheetNameLower.includes('persona')) {
@@ -215,8 +163,6 @@ class EnvironmentalAnalyticsService {
         sheetNameLower.includes('objetos') ||
         sheetNameLower === 'incautaciones') {
       
-      console.log(`🔍 Analizando incautaciones en hoja: ${sheetName}`);
-      console.log(`📝 Headers disponibles: ${headers.join(', ')}`);
       
       // Buscar columnas con mayor flexibilidad
       const tipoIncautacionCol = headers.findIndex(h => {
@@ -243,15 +189,12 @@ class EnvironmentalAnalyticsService {
                hLower.includes('volumen');
       });
       
-      console.log(`📊 Columnas encontradas - Tipo: ${tipoIncautacionCol} (${headers[tipoIncautacionCol]}), Cantidad: ${cantidadCol} (${cantidadCol >= 0 ? headers[cantidadCol] : 'N/A'})`);
-      console.log(`📋 Fila de datos: ${row.join(', ')}`);
       
       if (tipoIncautacionCol >= 0 && row[tipoIncautacionCol]) {
         const tipoIncautacion = String(row[tipoIncautacionCol] || '').trim();
         const cantidad = cantidadCol >= 0 ? String(row[cantidadCol] || '1').trim() : '1';
         
         if (tipoIncautacion) {  // Solo agregar si hay un tipo válido
-          console.log(`✅ Agregando incautación: ${cantidad} ${tipoIncautacion} al caso ${envCase.numeroCaso}`);
           
           envCase.incautaciones.push(`${cantidad} ${tipoIncautacion}`);
           if (!envCase.incautacionesInfo) envCase.incautacionesInfo = [];
@@ -260,23 +203,47 @@ class EnvironmentalAnalyticsService {
             cantidad: cantidad
           });
         } else {
-          console.log(`⚠️ Tipo de incautación vacío para caso ${envCase.numeroCaso}`);
         }
       } else {
-        console.log(`⚠️ No se encontró columna de tipo de incautación o fila vacía en ${sheetName}`);
       }
     }
 
-    // Análisis de ubicación/coordenadas
-    if (sheetNameLower.includes('ubicacion') || sheetNameLower.includes('coordenada')) {
-      const latCol = headers.findIndex(h => h.toLowerCase().includes('lat'));
-      const lngCol = headers.findIndex(h => h.toLowerCase().includes('lng') || h.toLowerCase().includes('lon'));
+    // NUEVA LÓGICA: Buscar una sola columna de coordenadas
+    const coordCol = headers.findIndex(h => h.toLowerCase().includes('coordenada'));
+
+    if (coordCol >= 0 && row[coordCol] && !envCase.coordenadas) {
+      const coordStr = String(row[coordCol]);
+      const parts = coordStr.split(',');
+
+      if (parts.length === 2) {
+        const lat = parseFloat(parts[0].trim());
+        const lng = parseFloat(parts[1].trim());
+
+        if (!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0) {
+          envCase.coordenadas = { lat, lng };
+        }
+      }
+    } else {
+      // LÓGICA ANTERIOR (FALLBACK): Buscar columnas separadas si no se encuentra la columna única
+      const latCol = headers.findIndex(h => {
+        const hLower = h.toLowerCase();
+        return hLower.startsWith('lat') || hLower === 'latitud';
+      });
+      const lngCol = headers.findIndex(h => {
+        const hLower = h.toLowerCase();
+        return hLower.startsWith('lon') || hLower.startsWith('lng') || hLower === 'longitud';
+      });
       
-      if (latCol >= 0 && lngCol >= 0 && row[latCol] && row[lngCol]) {
-        envCase.coordenadas = {
-          lat: parseFloat(String(row[latCol])) || 0,
-          lng: parseFloat(String(row[lngCol])) || 0
-        };
+      if (latCol >= 0 && lngCol >= 0 && row[latCol] && row[lngCol] && !envCase.coordenadas) {
+        const latStr = String(row[latCol]).replace(',', '.').trim();
+        const lngStr = String(row[lngCol]).replace(',', '.').trim();
+        
+        const lat = parseFloat(latStr);
+        const lng = parseFloat(lngStr);
+
+        if (!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0) {
+          envCase.coordenadas = { lat, lng };
+        }
       }
     }
   }
@@ -315,15 +282,88 @@ class EnvironmentalAnalyticsService {
 
   // Aplicar filtros a los casos
   applyFilters(cases: EnvironmentalCase[], filters?: EnvironmentalFilters): EnvironmentalCase[] {
+    
     if (!filters) return cases;
 
-    return cases.filter(envCase => {
+    const filteredCases = cases.filter(envCase => {
       // Filtro de fecha
       if (filters.dateFrom || filters.dateTo) {
-        const caseDate = envCase.fecha ? new Date(envCase.fecha) : null;
-        if (caseDate) {
-          if (filters.dateFrom && caseDate < new Date(filters.dateFrom)) return false;
-          if (filters.dateTo && caseDate > new Date(filters.dateTo)) return false;
+        let caseDate: Date | null = null;
+        
+        if (envCase.fecha) {
+          const dateStr = envCase.fecha.trim();
+          console.log(`🔍 Parsing date: "${dateStr}"`);
+          
+          // Special debug for 31/7/2025 (without leading zero)
+          if (dateStr === '31/7/2025') {
+            console.log(`🎯 FOUND TARGET DATE: "${dateStr}" - Length: ${dateStr.length}`);
+            console.log(`🎯 Char codes:`, Array.from(dateStr).map(c => c.charCodeAt(0)));
+          }
+          
+          // Try to parse the date in multiple formats
+          // Format 1: YYYY-MM-DD (ISO format)
+          if (dateStr.match(/^\d{4}-\d{1,2}-\d{1,2}/)) {
+            // Handle YYYY-MM-DD format, ensuring it's parsed as local time
+            // by constructing date from parts. This avoids timezone issues.
+            const dateOnly = dateStr.substring(0, 10);
+            const parts = dateOnly.split('-');
+            if (parts.length === 3) {
+              const year = parseInt(parts[0], 10);
+              const month = parseInt(parts[1], 10);
+              const day = parseInt(parts[2], 10);
+              if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
+                caseDate = new Date(year, month - 1, day);
+              }
+            }
+          }
+          // Format 2: DD/MM/YYYY, DD/M/YYYY, D/MM/YYYY, D/M/YYYY, DD-MM-YYYY, etc.
+          else if (dateStr.match(/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}$/)) {
+            const parts = dateStr.split(/[\/\-]/);
+            if (parts.length === 3) {
+              const day = parseInt(parts[0], 10);
+              const month = parseInt(parts[1], 10);
+              const year = parseInt(parts[2], 10);
+              if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
+                // Constructing date from parts ensures it's in local timezone
+                caseDate = new Date(year, month - 1, day);
+              }
+            }
+          }
+          // Format 3: Try direct parsing as fallback
+          if (!caseDate || isNaN(caseDate.getTime())) {
+            // Fallback: For 'YYYY-MM-DD', replace '-' with '/' to encourage local time parsing
+            const localDateStr = dateStr.match(/^\d{4}-\d{1,2}-\d{1,2}$/)
+              ? dateStr.replace(/-/g, '/')
+              : dateStr;
+            const testDate = new Date(localDateStr);
+            if (!isNaN(testDate.getTime())) {
+              caseDate = testDate;
+            }
+          }
+          
+          if (!caseDate || isNaN(caseDate.getTime())) {
+            console.log(`❌ Failed to parse date: "${dateStr}"`);
+          }
+        }
+        
+        if (caseDate && !isNaN(caseDate.getTime())) {
+          // Ensure filter dates are parsed in local timezone correctly
+          const filterFromDate = filters.dateFrom ? new Date(`${filters.dateFrom}T00:00:00`) : null;
+          const filterToDate = filters.dateTo ? new Date(`${filters.dateTo}T23:59:59.999`) : null;
+
+          // Normalize caseDate to the start of its day for consistent comparison
+          caseDate.setHours(0, 0, 0, 0);
+
+          if (filterFromDate && caseDate < filterFromDate) {
+            return false;
+          }
+          if (filterToDate && caseDate > filterToDate) {
+            return false;
+          }
+          // console.log(`✅ Date filter passed for case: ${envCase.numeroCaso}`);
+        } else if (filters.dateFrom || filters.dateTo) {
+          console.log(`❌ Excluding case ${envCase.numeroCaso} - no valid date when date filter is active`);
+          return false; // Exclude cases without valid dates when date filter is active
         }
       }
 
@@ -367,6 +407,8 @@ class EnvironmentalAnalyticsService {
 
       return true;
     });
+    
+    return filteredCases;
   }
 
   // Obtener opciones únicas para filtros
@@ -410,11 +452,7 @@ class EnvironmentalAnalyticsService {
   getIncautacionesByType(cases: EnvironmentalCase[]): any[] {
     const incautacionCount = new Map<string, number>();
     
-    console.log('🔍 Analizando incautaciones para gráfico (sumando cantidades reales):');
     cases.forEach(envCase => {
-      console.log(`📝 Caso ${envCase.numeroCaso}:`);
-      console.log(`   📦 Incautaciones string: ${envCase.incautaciones.join(', ')}`);
-      console.log(`   📊 IncautacionesInfo: ${JSON.stringify(envCase.incautacionesInfo || [])}`);
       
       // Usar incautacionesInfo si está disponible (más preciso)
       if (envCase.incautacionesInfo && envCase.incautacionesInfo.length > 0) {
@@ -425,19 +463,16 @@ class EnvironmentalAnalyticsService {
           // Capitalizar primera letra
           tipo = tipo.charAt(0).toUpperCase() + tipo.slice(1);
           
-          console.log(`✅ De incautacionesInfo - Tipo: "${tipo}" - Cantidad: ${cantidad}`);
           
           if (tipo && tipo.length > 0) {
             const cantidadAnterior = incautacionCount.get(tipo) || 0;
             const nuevaCantidad = cantidadAnterior + cantidad;
             incautacionCount.set(tipo, nuevaCantidad);
-            console.log(`📊 "${tipo}": ${cantidadAnterior} + ${cantidad} = ${nuevaCantidad}`);
           }
         });
       } else {
         // Fallback: parsear las strings de incautaciones
         envCase.incautaciones.forEach(incautacion => {
-          console.log(`📦 Fallback - Incautación original: "${incautacion}"`);
           
           // Extraer cantidad (números al inicio)
           const cantidadMatch = incautacion.match(/^(\d+)\s*/);
@@ -455,22 +490,16 @@ class EnvironmentalAnalyticsService {
           // Capitalizar primera letra
           tipo = tipo.charAt(0).toUpperCase() + tipo.slice(1);
           
-          console.log(`✅ Fallback - Tipo limpio: "${tipo}" - Cantidad: ${cantidad}`);
           
           if (tipo && tipo.length > 0) {
             const cantidadAnterior = incautacionCount.get(tipo) || 0;
             const nuevaCantidad = cantidadAnterior + cantidad;
             incautacionCount.set(tipo, nuevaCantidad);
-            console.log(`📊 "${tipo}": ${cantidadAnterior} + ${cantidad} = ${nuevaCantidad}`);
           }
         });
       }
     });
 
-    console.log('📊 Conteo final de incautaciones (cantidades reales sumadas):');
-    Array.from(incautacionCount.entries()).forEach(([tipo, cantidad]) => {
-      console.log(`   📦 ${tipo}: ${cantidad} unidades totales`);
-    });
 
     return Array.from(incautacionCount.entries())
       .map(([tipo, cantidad]) => ({ tipo, cantidad }))

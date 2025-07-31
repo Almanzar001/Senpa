@@ -263,7 +263,7 @@ const SecondaryIndicators: React.FC<SecondaryIndicatorsProps> = ({ cases }) => {
             </div>
           </div>
           
-          <div className="flex justify-between items-center p-2 bg-white rounded">
+          <div className="flex justify-between items-center p-2 bg-primary-50 rounded">
             <span className="text-xs text-gray-600">Promedio detenidos/operativo</span>
             <span className="font-semibold text-indigo-600">
               {insights.promedioDetenidosPorOperativo}
@@ -287,23 +287,23 @@ const SecondaryIndicators: React.FC<SecondaryIndicatorsProps> = ({ cases }) => {
       content: (
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-2 text-xs">
-            <div className="bg-white p-2 rounded">
+            <div className="bg-primary-50 p-2 rounded">
               <div className="font-semibold text-gray-700">Total Casos</div>
               <div className="text-lg font-bold text-blue-600">{cases.length}</div>
             </div>
-            <div className="bg-white p-2 rounded">
+            <div className="bg-primary-50 p-2 rounded">
               <div className="font-semibold text-gray-700">Áreas Cubiertas</div>
               <div className="text-lg font-bold text-green-600">
                 {new Set(cases.map(c => c.areaTemática).filter(a => a)).size}
               </div>
             </div>
-            <div className="bg-white p-2 rounded">
+            <div className="bg-primary-50 p-2 rounded">
               <div className="font-semibold text-gray-700">Localidades</div>
               <div className="text-lg font-bold text-orange-600">
                 {new Set(cases.map(c => c.localidad).filter(l => l)).size}
               </div>
             </div>
-            <div className="bg-white p-2 rounded">
+            <div className="bg-primary-50 p-2 rounded">
               <div className="font-semibold text-gray-700">Eficacia</div>
               <div className="text-lg font-bold text-purple-600">
                 {insights.eficienciaOperativos}%

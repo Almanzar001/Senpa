@@ -31,13 +31,18 @@ const DataTable: React.FC<DataTableProps> = ({ sheetData }) => {
   const { headers, rows } = sheetsService.processSheetData(sheetData);
 
   const filteredRows = useMemo(() => {
-    if (!searchTerm) return rows;
+    let result = rows;
     
-    return rows.filter(row =>
-      Object.values(row).some(value =>
-        String(value).toLowerCase().includes(searchTerm.toLowerCase())
-      )
-    );
+    // Apply local search term if provided (additional to global filters)
+    if (searchTerm) {
+      result = result.filter(row =>
+        Object.values(row).some(value =>
+          String(value).toLowerCase().includes(searchTerm.toLowerCase())
+        )
+      );
+    }
+    
+    return result;
   }, [rows, searchTerm]);
 
   const handleChangePage = (_event: unknown, newPage: number) => {

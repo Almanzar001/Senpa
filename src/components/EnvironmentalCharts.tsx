@@ -81,7 +81,7 @@ const EnvironmentalCharts: React.FC<EnvironmentalChartsProps> = ({ cases, filter
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-lg">
+        <div className="bg-primary-50 p-4 border border-gray-200 rounded-lg shadow-lg">
           <p className="font-medium text-gray-800 mb-2">{label}</p>
           {payload.map((entry: any, index: number) => (
             <p key={index} style={{ color: entry.color }} className="text-sm">

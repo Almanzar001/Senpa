@@ -19,7 +19,8 @@ import {
   DateRange as DateRangeIcon,
   LocationOn as LocationIcon,
   Category as CategoryIcon,
-  Flag as StatusIcon
+  Flag as StatusIcon,
+  Map as ProvinceIcon
 } from '@mui/icons-material';
 import { type SheetData } from '../services/googleSheets';
 
@@ -29,6 +30,7 @@ export interface FilterOptions {
   states: string[];
   locations: string[];
   types: string[];
+  provinces: string[];
   searchText: string;
 }
 
@@ -47,7 +49,8 @@ const AdvancedFilters: React.FC<AdvancedFiltersProps> = ({
   const [availableOptions, setAvailableOptions] = useState({
     states: [] as string[],
     locations: [] as string[],
-    types: [] as string[]
+    types: [] as string[],
+    provinces: [] as string[]
   });
 
   // Extract unique values from all sheets
@@ -57,6 +60,7 @@ const AdvancedFilters: React.FC<AdvancedFiltersProps> = ({
     const states = new Set<string>();
     const locations = new Set<string>();
     const types = new Set<string>();
+    const provinces = new Set<string>();
 
     sheetsData.forEach(sheet => {
       if (sheet.data.length <= 1) return;
@@ -82,6 +86,12 @@ const AdvancedFilters: React.FC<AdvancedFiltersProps> = ({
         h.toLowerCase().includes('categoria') ||
         h.toLowerCase().includes('clase')
       );
+      
+      const provinciaCol = headers.findIndex(h => 
+        h.toLowerCase().includes('provincia') || 
+        h.toLowerCase().includes('province') ||
+        h.toLowerCase().includes('region')
+      );
 
       rows.forEach(row => {
         if (estadoCol >= 0 && row[estadoCol]) {
@@ -93,13 +103,17 @@ const AdvancedFilters: React.FC<AdvancedFiltersProps> = ({
         if (tipoCol >= 0 && row[tipoCol]) {
           types.add(String(row[tipoCol]).trim());
         }
+        if (provinciaCol >= 0 && row[provinciaCol]) {
+          provinces.add(String(row[provinciaCol]).trim());
+        }
       });
     });
 
     setAvailableOptions({
       states: Array.from(states).filter(s => s.length > 0).sort(),
       locations: Array.from(locations).filter(l => l.length > 0).sort(),
-      types: Array.from(types).filter(t => t.length > 0).sort()
+      types: Array.from(types).filter(t => t.length > 0).sort(),
+      provinces: Array.from(provinces).filter(p => p.length > 0).sort()
     });
   }, [sheetsData]);
 
@@ -115,6 +129,7 @@ const AdvancedFilters: React.FC<AdvancedFiltersProps> = ({
       states: [],
       locations: [],
       types: [],
+      provinces: [],
       searchText: ''
     };
     onFiltersChange(emptyFilters);
@@ -127,6 +142,7 @@ const AdvancedFilters: React.FC<AdvancedFiltersProps> = ({
     count += activeFilters.states.length;
     count += activeFilters.locations.length;
     count += activeFilters.types.length;
+    count += activeFilters.provinces.length;
     if (activeFilters.searchText) count++;
     return count;
   };
@@ -205,8 +221,11 @@ const AdvancedFilters: React.FC<AdvancedFiltersProps> = ({
               key={index}
               label={filter.label}
               onClick={() => {
-                handleFilterChange('dateFrom', filter.from);
-                handleFilterChange('dateTo', filter.to);
+                onFiltersChange({
+                  ...activeFilters,
+                  dateFrom: filter.from,
+                  dateTo: filter.to
+                });
               }}
               variant={
                 activeFilters.dateFrom === filter.from && activeFilters.dateTo === filter.to
@@ -221,9 +240,9 @@ const AdvancedFilters: React.FC<AdvancedFiltersProps> = ({
         </div>
 
         <Collapse in={expanded}>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
             {/* Date Range */}
-            <div className="w-full md:w-1/2">
+            <div className="w-full">
               <Box className="space-y-3">
                 <div className="flex items-center mb-2">
                   <DateRangeIcon className="text-gray-600 mr-1" fontSize="small" />
@@ -255,7 +274,7 @@ const AdvancedFilters: React.FC<AdvancedFiltersProps> = ({
             </div>
 
             {/* States Filter */}
-            <div className="w-full md:w-1/2">
+            <div className="w-full">
               <div className="flex items-center mb-2">
                 <StatusIcon className="text-gray-600 mr-1" fontSize="small" />
                 <Typography variant="subtitle2" className="font-medium">
@@ -289,7 +308,7 @@ const AdvancedFilters: React.FC<AdvancedFiltersProps> = ({
             </div>
 
             {/* Locations Filter */}
-            <div className="w-full md:w-1/2">
+            <div className="w-full">
               <div className="flex items-center mb-2">
                 <LocationIcon className="text-gray-600 mr-1" fontSize="small" />
                 <Typography variant="subtitle2" className="font-medium">
@@ -323,7 +342,7 @@ const AdvancedFilters: React.FC<AdvancedFiltersProps> = ({
             </div>
 
             {/* Types Filter */}
-            <div className="w-full md:w-1/2">
+            <div className="w-full">
               <div className="flex items-center mb-2">
                 <CategoryIcon className="text-gray-600 mr-1" fontSize="small" />
                 <Typography variant="subtitle2" className="font-medium">
@@ -350,6 +369,40 @@ const AdvancedFilters: React.FC<AdvancedFiltersProps> = ({
                   <TextField
                     {...params}
                     placeholder="Seleccionar tipos..."
+                    size="small"
+                  />
+                )}
+              />
+            </div>
+
+            {/* Provinces Filter */}
+            <div className="w-full">
+              <div className="flex items-center mb-2">
+                <ProvinceIcon className="text-gray-600 mr-1" fontSize="small" />
+                <Typography variant="subtitle2" className="font-medium">
+                  Provincias
+                </Typography>
+              </div>
+              
+              <Autocomplete
+                multiple
+                options={availableOptions.provinces}
+                value={activeFilters.provinces}
+                onChange={(_, newValue) => handleFilterChange('provinces', newValue)}
+                renderTags={(value, getTagProps) =>
+                  value.map((option, index) => (
+                    <Chip
+                      variant="outlined"
+                      label={option}
+                      size="small"
+                      {...getTagProps({ index })}
+                    />
+                  ))
+                }
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    placeholder="Seleccionar provincias..."
                     size="small"
                   />
                 )}

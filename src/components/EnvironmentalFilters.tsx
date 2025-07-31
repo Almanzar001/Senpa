@@ -36,12 +36,28 @@ const EnvironmentalFilters: React.FC<EnvironmentalFiltersProps> = ({
   activeFilters
 }) => {
   const [expanded, setExpanded] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
   const [availableOptions, setAvailableOptions] = useState({
     provincias: [] as string[],
     divisiones: [] as string[],
     tiposActividad: [] as string[],
     areasTemáticas: [] as string[]
   });
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (dropdownOpen && !target.closest('.dropdown-provinces')) {
+        setDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [dropdownOpen]);
 
   // Extract unique values from cases
   useEffect(() => {
@@ -80,30 +96,46 @@ const EnvironmentalFilters: React.FC<EnvironmentalFiltersProps> = ({
 
   const getActiveFilterCount = () => {
     let count = 0;
-    if (activeFilters.dateFrom) count++;
-    if (activeFilters.dateTo) count++;
+    // Treat date range as a single filter
+    if (activeFilters.dateFrom || activeFilters.dateTo) {
+      count++;
+    }
     count += activeFilters.provincia.length;
     count += activeFilters.division.length;
     count += activeFilters.tipoActividad.length;
     count += activeFilters.areaTemática.length;
-    if (activeFilters.searchText) count++;
+    if (activeFilters.searchText) {
+      count++;
+    }
     return count;
   };
 
-  const today = new Date().toISOString().split('T')[0];
-  const thisWeekStart = new Date();
-  thisWeekStart.setDate(thisWeekStart.getDate() - 7);
-  const thisWeekStartStr = thisWeekStart.toISOString().split('T')[0];
+  const getLocalDateString = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
 
-  const thisMonthStart = new Date();
-  thisMonthStart.setDate(1);
-  const thisMonthStartStr = thisMonthStart.toISOString().split('T')[0];
+  const today = getLocalDateString(new Date());
+
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+  const thisWeekStartStr = getLocalDateString(sevenDaysAgo);
+
+  const thisMonthStartDate = new Date();
+  thisMonthStartDate.setDate(1);
+  const thisMonthStartStr = getLocalDateString(thisMonthStartDate);
+
+  const ninetyDaysAgo = new Date();
+  ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 89);
+  const lastQuarterStartStr = getLocalDateString(ninetyDaysAgo);
 
   const quickDateFilters = [
     { label: 'Hoy', from: today, to: today },
     { label: 'Últimos 7 días', from: thisWeekStartStr, to: today },
     { label: 'Este mes', from: thisMonthStartStr, to: today },
-    { label: 'Último trimestre', from: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], to: today }
+    { label: 'Último trimestre', from: lastQuarterStartStr, to: today }
   ];
 
   return (
@@ -171,13 +203,17 @@ const EnvironmentalFilters: React.FC<EnvironmentalFiltersProps> = ({
               <button
                 key={index}
                 onClick={() => {
-                  handleFilterChange('dateFrom', filter.from);
-                  handleFilterChange('dateTo', filter.to);
+                  const isAlreadyActive = activeFilters.dateFrom === filter.from && activeFilters.dateTo === filter.to;
+                  onFiltersChange({
+                    ...activeFilters,
+                    dateFrom: isAlreadyActive ? '' : filter.from,
+                    dateTo: isAlreadyActive ? '' : filter.to,
+                  });
                 }}
-                className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
+                className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all border-2 ${
                   activeFilters.dateFrom === filter.from && activeFilters.dateTo === filter.to
-                    ? 'bg-primary-600 text-white shadow-md'
-                    : 'bg-primary-50 text-primary-700 hover:bg-primary-100'
+                    ? 'bg-primary-600 text-white shadow-md border-primary-700'
+                    : 'bg-primary-50 text-primary-700 hover:bg-primary-100 border-primary-600'
                 }`}
               >
                 {filter.label}
@@ -202,10 +238,10 @@ const EnvironmentalFilters: React.FC<EnvironmentalFiltersProps> = ({
                     : [...activeFilters.tipoActividad, tipo];
                   handleFilterChange('tipoActividad', newTipos);
                 }}
-                className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
+                className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all border-2 ${
                   activeFilters.tipoActividad.includes(tipo)
-                    ? 'bg-verde-seco-600 text-white shadow-md'
-                    : 'bg-verde-seco-50 text-verde-seco-700 hover:bg-verde-seco-100'
+                    ? 'bg-verde-seco-600 text-white shadow-md border-verde-seco-700'
+                    : 'bg-verde-seco-50 text-verde-seco-700 hover:bg-verde-seco-100 border-verde-seco-600'
                 }`}
               >
                 {tipo}
@@ -250,22 +286,78 @@ const EnvironmentalFilters: React.FC<EnvironmentalFiltersProps> = ({
             {/* Multi-select filters preview */}
             <div className="space-y-6">
               {/* Provinces */}
-              <div>
+              <div className="relative dropdown-provinces">
                 <h3 className="text-sm font-semibold text-neutral-700 mb-3 flex items-center gap-2">
                   <span className="text-verde-seco-600">📍</span>
                   Provincias ({availableOptions.provincias.length} disponibles)
                 </h3>
-                <div className="text-sm text-neutral-600 bg-neutral-50 rounded-lg p-3">
-                  {activeFilters.provincia.length > 0 ? (
-                    <div className="flex flex-wrap gap-1">
+                <div className="space-y-2">
+                  {/* Dropdown Toggle */}
+                  <button
+                    type="button"
+                    onClick={() => setDropdownOpen(!dropdownOpen)}
+                    className="w-full px-3 py-2 border border-neutral-200 rounded-lg text-sm text-left bg-primary-50 hover:bg-primary-100 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all flex items-center justify-between"
+                  >
+                    <span className="text-neutral-600">
+                      {activeFilters.provincia.length === 0 
+                        ? 'Seleccionar provincias...'
+                        : `${activeFilters.provincia.length} provincia${activeFilters.provincia.length !== 1 ? 's' : ''} seleccionada${activeFilters.provincia.length !== 1 ? 's' : ''}`
+                      }
+                    </span>
+                    <span className={`transition-transform duration-200 ${dropdownOpen ? 'rotate-180' : ''}`}>
+                      🔽
+                    </span>
+                  </button>
+
+                  {/* Dropdown Menu */}
+                  {dropdownOpen && (
+                    <div className="absolute z-10 w-full mt-1 bg-primary-50 border border-neutral-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                      {availableOptions.provincias.map((provincia, index) => (
+                        <button
+                          key={index}
+                          type="button"
+                          onClick={() => {
+                            const newProvincias = activeFilters.provincia.includes(provincia)
+                              ? activeFilters.provincia.filter(p => p !== provincia)
+                              : [...activeFilters.provincia, provincia];
+                            handleFilterChange('provincia', newProvincias);
+                          }}
+                          className={`w-full px-3 py-2 text-left text-sm hover:bg-neutral-50 transition-colors flex items-center justify-between ${
+                            activeFilters.provincia.includes(provincia) ? 'bg-verde-seco-50 text-verde-seco-700' : 'text-neutral-700'
+                          }`}
+                        >
+                          <span>{provincia}</span>
+                          {activeFilters.provincia.includes(provincia) && (
+                            <span className="text-verde-seco-600">✓</span>
+                          )}
+                        </button>
+                      ))}
+                      {availableOptions.provincias.length === 0 && (
+                        <div className="px-3 py-2 text-sm text-neutral-500 text-center">
+                          No hay provincias disponibles
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Selected Provinces Chips */}
+                  {activeFilters.provincia.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-2">
                       {activeFilters.provincia.map((provincia, index) => (
-                        <span key={index} className="status-info text-xs px-2 py-1">
+                        <span key={index} className="status-info text-xs px-2 py-1 flex items-center gap-1">
                           {provincia}
+                          <button
+                            onClick={() => {
+                              const newProvincias = activeFilters.provincia.filter(p => p !== provincia);
+                              handleFilterChange('provincia', newProvincias);
+                            }}
+                            className="text-info-600 hover:text-info-800 font-bold ml-1"
+                          >
+                            ×
+                          </button>
                         </span>
                       ))}
                     </div>
-                  ) : (
-                    'Todas las provincias seleccionadas'
                   )}
                 </div>
               </div>

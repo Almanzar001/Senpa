@@ -1,148 +1,37 @@
-import React, { useState, useEffect, useMemo } from 'react';
-// Removemos los iconos de Material-UI y usamos emojis
-import GoogleSheetsService, { type SheetData } from '../services/googleSheets';
-import EnvironmentalAnalyticsService from '../services/environmentalAnalytics';
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { useData } from '../contexts/DataContext';
 import EnvironmentalMetrics from './EnvironmentalMetrics';
-import EnvironmentalFiltersComponent, { type EnvironmentalFilters } from './EnvironmentalFilters';
+import EnvironmentalFiltersComponent from './EnvironmentalFilters';
 import EnvironmentalCharts from './EnvironmentalCharts';
 import EnvironmentalTable from './EnvironmentalTable';
 import SecondaryIndicators from './SecondaryIndicators';
 import AutoRefreshSettings from './AutoRefreshSettings';
 
-// Función para crear datos de demostración
-function createDemoEnvironmentalData(): SheetData[] {
-  return [
-    {
-      name: 'Operativos',
-      data: [
-        ['numeroCaso', 'fecha', 'hora', 'provincia', 'localidad', 'tipoActividad', 'areaTemática'],
-        ['CASO001', '2025-01-15', '08:30', 'Santo Domingo', 'Distrito Nacional', 'Operativo', 'Suelos y Aguas'],
-        ['CASO002', '2025-01-16', '14:20', 'Santiago', 'Santiago Centro', 'Patrulla', 'Recursos Forestales'],
-        ['CASO003', '2025-01-17', '09:15', 'La Vega', 'Concepción de La Vega', 'Operativo', 'Área Protegida'],
-        ['CASO004', '2025-01-18', '16:45', 'San Pedro de Macorís', 'San Pedro Centro', 'Operativo', 'Costeros y Marinos'],
-        ['CASO005', '2025-01-19', '11:30', 'Barahona', 'Barahona Centro', 'Patrulla', 'Gestión Ambiental']
-      ]
-    },
-    {
-      name: 'Detenidos',
-      data: [
-        ['numeroCaso', 'nombre', 'nacionalidad'],
-        ['CASO001', 'Juan Pérez', 'Dominicana'],
-        ['CASO001', 'María González', 'Dominicana'],
-        ['CASO003', 'Carlos Rodríguez', 'Haitiana'],
-        ['CASO004', 'Ana Martínez', 'Dominicana']
-      ]
-    },
-    {
-      name: 'Vehículos',
-      data: [
-        ['numeroCaso', 'tipo', 'placa'],
-        ['CASO001', 'Camión', 'A123456'],
-        ['CASO002', 'Motocicleta', 'B789012'],
-        ['CASO004', 'Camioneta', 'C345678'],
-        ['CASO005', 'Automóvil', 'D901234']
-      ]
-    },
-    {
-      name: 'Incautaciones',
-      data: [
-        ['numeroCaso', 'tipo', 'cantidad'],
-        ['CASO001', 'Madera ilegal', '50'],
-        ['CASO001', 'Herramientas', '10'],
-        ['CASO003', 'Fauna silvestre', '5'],
-        ['CASO004', 'Productos químicos', '20'],
-        ['CASO005', 'Residuos tóxicos', '15']
-      ]
-    }
-  ];
-}
 
-export interface EnvironmentalDashboardProps {
-  spreadsheetId: string;
-  apiKey: string;
-}
+const EnvironmentalDashboard: React.FC = () => {
+  const {
+    cases: environmentalCases,
+    filteredCases,
+    loading,
+    error,
+    filters,
+    setFilters,
+    fetchData
+  } = useData();
 
-
-const EnvironmentalDashboard: React.FC<EnvironmentalDashboardProps> = ({ spreadsheetId, apiKey }) => {
-  console.log('🚀 EnvironmentalDashboard INICIADO');
-  console.log('📋 Props recibidas - spreadsheetId:', spreadsheetId);
-  console.log('🔑 Props recibidas - apiKey:', apiKey ? `${apiKey.substring(0, 15)}...` : 'UNDEFINED');
-  
-  const [sheets, setSheets] = useState<SheetData[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState(0);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [refreshInterval, setRefreshInterval] = useState(30); // segundos
   const [settingsOpen, setSettingsOpen] = useState(false);
-  
-  const [filters, setFilters] = useState<EnvironmentalFilters>({
-    dateFrom: '',
-    dateTo: '',
-    provincia: [],
-    division: [],
-    tipoActividad: [],
-    areaTemática: [],
-    searchText: ''
-  });
 
-  const analyticsService = useMemo(() => new EnvironmentalAnalyticsService(), []);
-  
-  // Process environmental cases from sheets data
-  const environmentalCases = useMemo(() => {
-    if (!sheets || sheets.length === 0) return [];
-    return analyticsService.analyzeSheetsData(sheets);
-  }, [sheets, analyticsService]);
-
-  // Apply filters to cases
-  const filteredCases = useMemo(() => {
-    return analyticsService.applyFilters(environmentalCases, filters);
-  }, [environmentalCases, filters, analyticsService]);
-
-  // Función para fetch de datos
-  const fetchData = async () => {
-    console.log('🔍 fetchData - Verificando configuración:');
-    console.log('   📋 spreadsheetId:', spreadsheetId);
-    console.log('   🔑 apiKey:', apiKey ? `${apiKey.substring(0, 10)}...` : 'NO DEFINIDA');
-    
-    if (!spreadsheetId || !apiKey || apiKey === 'TU_NUEVA_API_KEY_AQUI') {
-      console.warn('API Key no configurada, usando datos de demostración');
-      // Usar datos de demostración cuando no hay API key
-      const demoSheets = createDemoEnvironmentalData();
-      setSheets(demoSheets);
-      setLastUpdated(new Date());
-      setError(null);
-      setLoading(false);
-      return;
-    }
-
-    try {
-      console.log('✅ Intentando obtener datos reales de Google Sheets...');
-      setLoading(true);
-      const sheetsService = new GoogleSheetsService(apiKey);
-      const sheetsData = await sheetsService.getMultipleSheets(spreadsheetId);
-      console.log('✅ Datos reales obtenidos exitosamente:', sheetsData.length, 'hojas');
-      setSheets(sheetsData);
-      setLastUpdated(new Date());
-      setError(null);
-    } catch (err) {
-      console.error('❌ Error fetching real data:', err);
-      console.warn('🔄 Usando datos de demo como fallback');
-      // Usar datos de demostración cuando falla la API
-      const demoSheets = createDemoEnvironmentalData();
-      setSheets(demoSheets);
-      setLastUpdated(new Date());
-      setError(null);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Effect inicial para cargar datos
   useEffect(() => {
-    fetchData();
-  }, [spreadsheetId, apiKey]);
+    // This will be triggered by the context's fetchData, but we can update the timestamp
+    if (!loading) {
+      setLastUpdated(new Date());
+    }
+  }, [loading]);
 
   // Auto-refresh effect
   useEffect(() => {
@@ -150,7 +39,6 @@ const EnvironmentalDashboard: React.FC<EnvironmentalDashboardProps> = ({ spreads
     
     if (autoRefresh && !loading) {
       intervalId = setInterval(() => {
-        console.log('🔄 Auto-refresh activado - actualizando datos...');
         fetchData();
       }, refreshInterval * 1000);
     }
@@ -164,13 +52,11 @@ const EnvironmentalDashboard: React.FC<EnvironmentalDashboardProps> = ({ spreads
 
 
   const handleRefresh = () => {
-    console.log('🔄 Actualización manual iniciada...');
-    fetchData();
+    fetchData().then(() => setLastUpdated(new Date()));
   };
 
   const toggleAutoRefresh = () => {
     setAutoRefresh(!autoRefresh);
-    console.log(`🔄 Auto-refresh ${!autoRefresh ? 'activado' : 'desactivado'}`);
   };
 
 
@@ -351,6 +237,15 @@ const EnvironmentalDashboard: React.FC<EnvironmentalDashboardProps> = ({ spreads
                   <span className="text-base">⚙️</span>
                   <span className="hidden lg:inline ml-2">Configuración</span>
                 </button>
+                
+                <Link to="/heatmap" className="btn-sm btn-primary min-w-0" title="Ver Mapa de Calor de Operativos">
+                  <span className="text-base">🗺️</span>
+                  <span className="hidden lg:inline ml-2">Operativos</span>
+                </Link>
+                <Link to="/detainees-map" className="btn-sm btn-secondary min-w-0" title="Ver Mapa de Calor de Detenidos">
+                  <span className="text-base">👥</span>
+                  <span className="hidden lg:inline ml-2">Detenidos</span>
+                </Link>
               </div>
             </div>
           </div>
@@ -365,9 +260,10 @@ const EnvironmentalDashboard: React.FC<EnvironmentalDashboardProps> = ({ spreads
           />
         </section>
 
+
         {/* Métricas principales */}
         <section className="mb-8">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 animate-slide-up">
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 animate-slide-up">
             <MemoizedEnvironmentalMetrics 
               cases={filteredCases} 
               filters={filters} 
