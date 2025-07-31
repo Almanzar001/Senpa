@@ -495,6 +495,17 @@ const EnvironmentalTable: React.FC<EnvironmentalTableProps> = ({ cases }) => {
                   </div>
                 </div>
               )}
+
+              {selectedCase.resultado && (
+                <div>
+                  <Typography variant="subtitle2" className="font-semibold text-gray-600 mb-2">
+                    Resultado
+                  </Typography>
+                  <Typography variant="body1" className="bg-blue-50 p-3 rounded-lg">
+                    {selectedCase.resultado}
+                  </Typography>
+                </div>
+              )}
             </div>
           )}
         </DialogContent>

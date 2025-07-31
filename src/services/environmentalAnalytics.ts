@@ -11,6 +11,7 @@ export interface EnvironmentalCase {
   detenidos: number;
   vehiculosDetenidos: number;
   incautaciones: string[];
+  resultado?: string;
   coordenadas?: {
     lat: number;
     lng: number;
@@ -84,6 +85,7 @@ class EnvironmentalAnalyticsService {
       const areaTemáticaCol = headers.findIndex(h => 
         h.toLowerCase().includes('area') && h.toLowerCase().includes('tematica')
       );
+      const resultadoCol = headers.findIndex(h => h.toLowerCase().includes('resultado'));
 
       rows.forEach(row => {
         const numeroCaso = String(row[numeroCasoCol] || '').trim();
@@ -100,6 +102,7 @@ class EnvironmentalAnalyticsService {
             localidad: localidadCol >= 0 ? String(row[localidadCol] || '') : '',
             tipoActividad: tipoActividadCol >= 0 ? String(row[tipoActividadCol] || '') : '',
             areaTemática: areaTemáticaCol >= 0 ? String(row[areaTemáticaCol] || '') : '',
+            resultado: resultadoCol >= 0 ? String(row[resultadoCol] || '') : '',
             detenidos: 0,
             vehiculosDetenidos: 0,
             incautaciones: []
