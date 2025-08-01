@@ -6,11 +6,14 @@ export interface EnvironmentalCase {
   hora: string;
   provincia: string;
   localidad: string;
+  region: string;
   tipoActividad: string;
   areaTemática: string;
   detenidos: number;
   vehiculosDetenidos: number;
   incautaciones: string[];
+  notificados: number;
+  procuraduria: boolean;
   resultado?: string;
   coordenadas?: {
     lat: number;
@@ -26,6 +29,9 @@ export interface EnvironmentalMetrics {
   vehiculosDetenidos: number;
   incautaciones: number;
   areasIntervenidas: number;
+  notificados: number;
+  procuraduria: number;
+  regiones: number;
 }
 
 export interface EnvironmentalFilters {
@@ -33,9 +39,11 @@ export interface EnvironmentalFilters {
   dateTo: string;
   provincia: string[];
   division: string[];
+  region: string[];
   tipoActividad: string[];
   areaTemática: string[];
   searchText: string;
+  activeDateFilter?: string; // ID del filtro de fecha activo
 }
 
 class EnvironmentalAnalyticsService {
@@ -52,7 +60,7 @@ class EnvironmentalAnalyticsService {
       return [];
     }
 
-    sheetsData.forEach(sheet => {
+    sheetsData.forEach((sheet) => {
       if (sheet.data.length <= 1) return;
       
       const headers = sheet.data[0] as string[];
@@ -70,7 +78,9 @@ class EnvironmentalAnalyticsService {
       const fechaCol = headers.findIndex(h => h.toLowerCase().includes('fecha'));
       const horaCol = headers.findIndex(h => h.toLowerCase().includes('hora'));
       const provinciaCol = headers.findIndex(h => 
-        h.toLowerCase().includes('provincia') || 
+        h.toLowerCase().includes('provincia')
+      );
+      const regionCol = headers.findIndex(h => 
         h.toLowerCase().includes('region')
       );
       const localidadCol = headers.findIndex(h => 
@@ -85,11 +95,36 @@ class EnvironmentalAnalyticsService {
       const areaTemáticaCol = headers.findIndex(h => 
         h.toLowerCase().includes('area') && h.toLowerCase().includes('tematica')
       );
+      const notificadosCol = headers.findIndex(h => {
+        const hLower = h.toLowerCase().trim();
+        return hLower === 'notificados' || 
+               hLower.includes('notificad') ||
+               hLower === 'notificado' ||
+               hLower.includes('num_notificados') ||
+               hLower.includes('numero_notificados');
+      });
+      
+
+      const procuraduriaCol = headers.findIndex(h => {
+        const hLower = h.toLowerCase().trim();
+        return hLower === 'procuraduria' ||
+               hLower === 'procuraduría' ||
+               hLower.includes('procuradur') ||
+               hLower === 'procuraduria_general' ||
+               hLower.includes('procur');
+      });
+
       const resultadoCol = headers.findIndex(h => h.toLowerCase().includes('resultado'));
 
+      let casosEncontradosEnEstaHoja = 0;
+      let casosSinNumero = 0;
+      
       rows.forEach(row => {
         const numeroCaso = String(row[numeroCasoCol] || '').trim();
-        if (!numeroCaso) return;
+        if (!numeroCaso) {
+          casosSinNumero++;
+          return;
+        }
 
         // Obtener o crear el caso
         let envCase = this.cases.get(numeroCaso);
@@ -99,29 +134,63 @@ class EnvironmentalAnalyticsService {
             fecha: fechaCol >= 0 ? String(row[fechaCol] || '') : '',
             hora: horaCol >= 0 ? String(row[horaCol] || '') : '',
             provincia: provinciaCol >= 0 ? String(row[provinciaCol] || '') : '',
+            region: regionCol >= 0 ? String(row[regionCol] || '') : '',
             localidad: localidadCol >= 0 ? String(row[localidadCol] || '') : '',
             tipoActividad: tipoActividadCol >= 0 ? String(row[tipoActividadCol] || '') : '',
             areaTemática: areaTemáticaCol >= 0 ? String(row[areaTemáticaCol] || '') : '',
             resultado: resultadoCol >= 0 ? String(row[resultadoCol] || '') : '',
             detenidos: 0,
             vehiculosDetenidos: 0,
-            incautaciones: []
+            incautaciones: [],
+            notificados: notificadosCol >= 0 && row[notificadosCol] && String(row[notificadosCol]).trim() ? 1 : 0,
+            procuraduria: procuraduriaCol >= 0 ? String(row[procuraduriaCol] || '').toLowerCase() === 'si' : false
           };
           this.cases.set(numeroCaso, envCase);
+          casosEncontradosEnEstaHoja++;
+          
+        } else {
+          // Actualizar campos si encontramos nuevos datos
+          if (notificadosCol >= 0 && row[notificadosCol] && String(row[notificadosCol]).trim()) {
+            // Si ya tenía notificados, mantener 1, si no tenía, ahora tiene 1
+            envCase.notificados = 1;
+          }
+          
+          if (procuraduriaCol >= 0 && row[procuraduriaCol]) {
+            const procuraduriaValue = String(row[procuraduriaCol] || '').toLowerCase() === 'si';
+            if (procuraduriaValue) {
+              envCase.procuraduria = true;
+            }
+          }
         }
 
         // Analizar datos específicos por tipo de hoja
         this.analyzeSheetSpecificData(sheet.name, headers, row, envCase);
       });
+      
     });
 
     const finalCases = Array.from(this.cases.values());
-    
     return finalCases;
   }
 
   private analyzeSheetSpecificData(sheetName: string, headers: string[], row: any[], envCase: EnvironmentalCase) {
     const sheetNameLower = sheetName.toLowerCase();
+
+    // Análisis de notificados
+    if (sheetNameLower.includes('notificad')) {
+      const cantidadCol = headers.findIndex(h => {
+        const hLower = h.toLowerCase();
+        return hLower.includes('cantidad') || 
+               hLower.includes('numero') || 
+               hLower.includes('total') ||
+               hLower.includes('notificados');
+      });
+      
+      if (cantidadCol >= 0 && row[cantidadCol] && String(row[cantidadCol]).trim()) {
+        // Solo marcar que este caso tiene notificados (1 o 0)
+        envCase.notificados = 1;
+      }
+    }
 
     // Análisis de detenidos
     if (sheetNameLower.includes('detenido') || sheetNameLower.includes('persona')) {
@@ -273,13 +342,27 @@ class EnvironmentalAnalyticsService {
         .filter(loc => loc.length > 0)
     ).size;
 
+    const notificados = filteredCases.reduce((total, c) => total + c.notificados, 0);
+    
+    const procuraduria = filteredCases.filter(c => c.procuraduria).length;
+    
+    
+    const regiones = new Set(
+      filteredCases
+        .map(c => c.region.toLowerCase().trim())
+        .filter(region => region.length > 0)
+    ).size;
+
     return {
       operativosRealizados,
       patrullas,
       detenidos,
       vehiculosDetenidos,
       incautaciones,
-      areasIntervenidas
+      areasIntervenidas,
+      notificados,
+      procuraduria,
+      regiones
     };
   }
 
@@ -295,13 +378,6 @@ class EnvironmentalAnalyticsService {
         
         if (envCase.fecha) {
           const dateStr = envCase.fecha.trim();
-          console.log(`🔍 Parsing date: "${dateStr}"`);
-          
-          // Special debug for 31/7/2025 (without leading zero)
-          if (dateStr === '31/7/2025') {
-            console.log(`🎯 FOUND TARGET DATE: "${dateStr}" - Length: ${dateStr.length}`);
-            console.log(`🎯 Char codes:`, Array.from(dateStr).map(c => c.charCodeAt(0)));
-          }
           
           // Try to parse the date in multiple formats
           // Format 1: YYYY-MM-DD (ISO format)
@@ -345,7 +421,7 @@ class EnvironmentalAnalyticsService {
           }
           
           if (!caseDate || isNaN(caseDate.getTime())) {
-            console.log(`❌ Failed to parse date: "${dateStr}"`);
+            // Failed to parse date
           }
         }
         
@@ -363,9 +439,7 @@ class EnvironmentalAnalyticsService {
           if (filterToDate && caseDate > filterToDate) {
             return false;
           }
-          // console.log(`✅ Date filter passed for case: ${envCase.numeroCaso}`);
         } else if (filters.dateFrom || filters.dateTo) {
-          console.log(`❌ Excluding case ${envCase.numeroCaso} - no valid date when date filter is active`);
           return false; // Exclude cases without valid dates when date filter is active
         }
       }
@@ -376,6 +450,14 @@ class EnvironmentalAnalyticsService {
           envCase.provincia.toLowerCase().includes(p.toLowerCase())
         );
         if (!matchesProvincia) return false;
+      }
+
+      // Filtro de región
+      if (filters.region && filters.region.length > 0) {
+        const matchesRegion = filters.region.some(r =>
+          envCase.region && envCase.region.toLowerCase().includes(r.toLowerCase())
+        );
+        if (!matchesRegion) return false;
       }
 
       // Filtro de tipo de actividad

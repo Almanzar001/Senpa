@@ -26,9 +26,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     dateTo: '',
     provincia: [],
     division: [],
+    region: [],
     tipoActividad: [],
     areaTemática: [],
-    searchText: ''
+    searchText: '',
+    activeDateFilter: undefined
   });
 
   const analyticsService = useMemo(() => new EnvironmentalAnalyticsService(), []);

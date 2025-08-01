@@ -56,20 +56,10 @@ const WeeklyCases3D: React.FC<WeeklyCases3DProps> = ({ cases }) => {
   const weeklyData = useMemo(() => {
     const weeklyMap = new Map<string, any>();
     
-    console.log('🔍 WeeklyCases3D - Analizando casos:', cases.length);
-    let casosProcessed = 0;
-    let casosSinFecha = 0;
-    let casosConFechaInvalida = 0;
-    let casosSinAreaTematica = 0;
     
-    cases.forEach((envCase, index) => {
-      console.log(`📝 Procesando caso ${index + 1}/${cases.length}: ${envCase.numeroCaso}`);
-      console.log(`   📅 Fecha original: "${envCase.fecha}"`);
-      console.log(`   🌿 Área temática: "${envCase.areaTemática}"`);
+    cases.forEach((envCase) => {
       
       if (!envCase.fecha) {
-        casosSinFecha++;
-        console.log(`   ❌ EXCLUIDO: Sin fecha`);
         return;
       }
       
@@ -89,12 +79,9 @@ const WeeklyCases3D: React.FC<WeeklyCases3DProps> = ({ cases }) => {
       }
       
       if (isNaN(date.getTime())) {
-        casosConFechaInvalida++;
-        console.log(`   ❌ EXCLUIDO: Fecha inválida parseada`);
         return;
       }
       
-      console.log(`   ✅ Fecha parseada correctamente: ${date.toLocaleDateString()}`);;
       
       const weekStart = new Date(date);
       weekStart.setDate(date.getDate() - date.getDay());
@@ -131,33 +118,18 @@ const WeeklyCases3D: React.FC<WeeklyCases3DProps> = ({ cases }) => {
       const area = envCase.areaTemática;
       if (area && weekData.hasOwnProperty(area)) {
         weekData[area]++;
-        console.log(`   ✅ Agregado a área: ${area}`);
-        casosProcessed++;
       } else {
         if (!area) {
-          casosSinAreaTematica++;
-          console.log(`   ❌ EXCLUIDO: Sin área temática`);
         } else {
-          console.log(`   ⚠️ Área temática no reconocida: "${area}"`);
         }
       }
     });
 
-    console.log(`📊 RESUMEN WeeklyCases3D:`);
-    console.log(`   📋 Total casos recibidos: ${cases.length}`);
-    console.log(`   ✅ Casos procesados: ${casosProcessed}`);
-    console.log(`   ❌ Sin fecha: ${casosSinFecha}`);
-    console.log(`   ❌ Fecha inválida: ${casosConFechaInvalida}`);
-    console.log(`   ❌ Sin área temática: ${casosSinAreaTematica}`);
 
     const result = Array.from(weeklyMap.values())
       .sort((a, b) => a.fechaOrden - b.fechaOrden)
       .slice(-12); // Últimas 12 semanas
     
-    console.log(`📈 Semanas generadas: ${result.length}`);
-    result.forEach(week => {
-      console.log(`   📅 ${week.semana}: ${week.total} casos`);
-    });
     
     return result;
   }, [cases]);

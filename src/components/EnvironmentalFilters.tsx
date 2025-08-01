@@ -6,9 +6,11 @@ export interface EnvironmentalFilters {
   dateTo: string;
   provincia: string[];
   division: string[];
+  region: string[];
   tipoActividad: string[];
   areaTemática: string[];
   searchText: string;
+  activeDateFilter?: string;
 }
 
 interface EnvironmentalFiltersProps {
@@ -40,6 +42,7 @@ const EnvironmentalFilters: React.FC<EnvironmentalFiltersProps> = ({
   const [availableOptions, setAvailableOptions] = useState({
     provincias: [] as string[],
     divisiones: [] as string[],
+    regiones: [] as string[],
     tiposActividad: [] as string[],
     areasTemáticas: [] as string[]
   });
@@ -65,12 +68,14 @@ const EnvironmentalFilters: React.FC<EnvironmentalFiltersProps> = ({
 
     const provincias = [...new Set(cases.map(c => c.provincia).filter(p => p))].sort();
     const divisiones = [...new Set(cases.map(c => c.localidad).filter(l => l))].sort();
+    const regiones = [...new Set(cases.map(c => c.region).filter(r => r))].sort();
     const tiposActividad = [...new Set(cases.map(c => c.tipoActividad).filter(t => t))].sort();
     const areasTemáticas = [...new Set(cases.map(c => c.areaTemática).filter(a => a))].sort();
 
     setAvailableOptions({
       provincias,
       divisiones,
+      regiones,
       tiposActividad: tiposActividad.length > 0 ? tiposActividad : TIPOS_ACTIVIDAD,
       areasTemáticas: areasTemáticas.length > 0 ? areasTemáticas : AREAS_TEMATICAS
     });
@@ -78,6 +83,10 @@ const EnvironmentalFilters: React.FC<EnvironmentalFiltersProps> = ({
 
   const handleFilterChange = (field: keyof EnvironmentalFilters, value: any) => {
     const newFilters = { ...activeFilters, [field]: value };
+    // Si se cambia una fecha manualmente, limpiar el filtro rápido activo
+    if (field === 'dateFrom' || field === 'dateTo') {
+      newFilters.activeDateFilter = undefined;
+    }
     onFiltersChange(newFilters);
   };
 
@@ -87,9 +96,11 @@ const EnvironmentalFilters: React.FC<EnvironmentalFiltersProps> = ({
       dateTo: '',
       provincia: [],
       division: [],
+      region: [],
       tipoActividad: [],
       areaTemática: [],
-      searchText: ''
+      searchText: '',
+      activeDateFilter: undefined
     };
     onFiltersChange(emptyFilters);
   };
@@ -102,6 +113,7 @@ const EnvironmentalFilters: React.FC<EnvironmentalFiltersProps> = ({
     }
     count += activeFilters.provincia.length;
     count += activeFilters.division.length;
+    count += activeFilters.region.length;
     count += activeFilters.tipoActividad.length;
     count += activeFilters.areaTemática.length;
     if (activeFilters.searchText) {
@@ -132,11 +144,12 @@ const EnvironmentalFilters: React.FC<EnvironmentalFiltersProps> = ({
   const lastQuarterStartStr = getLocalDateString(ninetyDaysAgo);
 
   const quickDateFilters = [
-    { label: 'Hoy', from: today, to: today },
-    { label: 'Últimos 7 días', from: thisWeekStartStr, to: today },
-    { label: 'Este mes', from: thisMonthStartStr, to: today },
-    { label: 'Último trimestre', from: lastQuarterStartStr, to: today }
+    { id: 'today', label: 'Hoy', from: today, to: today },
+    { id: 'week', label: 'Últimos 7 días', from: thisWeekStartStr, to: today },
+    { id: 'month', label: 'Este mes', from: thisMonthStartStr, to: today },
+    { id: 'quarter', label: 'Último trimestre', from: lastQuarterStartStr, to: today }
   ];
+
 
   return (
     <div className="card-environmental p-6 border-l-4 border-primary-500">
@@ -199,26 +212,39 @@ const EnvironmentalFilters: React.FC<EnvironmentalFiltersProps> = ({
             Filtros Rápidos de Fecha
           </h3>
           <div className="flex flex-wrap gap-2">
-            {quickDateFilters.map((filter, index) => (
-              <button
-                key={index}
-                onClick={() => {
-                  const isAlreadyActive = activeFilters.dateFrom === filter.from && activeFilters.dateTo === filter.to;
-                  onFiltersChange({
-                    ...activeFilters,
-                    dateFrom: isAlreadyActive ? '' : filter.from,
-                    dateTo: isAlreadyActive ? '' : filter.to,
-                  });
-                }}
-                className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all border-2 ${
-                  activeFilters.dateFrom === filter.from && activeFilters.dateTo === filter.to
-                    ? 'bg-primary-600 text-white shadow-md border-primary-700'
-                    : 'bg-primary-50 text-primary-700 hover:bg-primary-100 border-primary-600'
-                }`}
-              >
-                {filter.label}
-              </button>
-            ))}
+            {quickDateFilters.map((filter, index) => {
+              const isActive = activeFilters.activeDateFilter === filter.id;
+              
+              return (
+                <button
+                  key={index}
+                  onClick={() => {
+                    if (isActive) {
+                      onFiltersChange({
+                        ...activeFilters,
+                        dateFrom: '',
+                        dateTo: '',
+                        activeDateFilter: undefined
+                      });
+                    } else {
+                      onFiltersChange({
+                        ...activeFilters,
+                        dateFrom: filter.from,
+                        dateTo: filter.to,
+                        activeDateFilter: filter.id
+                      });
+                    }
+                  }}
+                  className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all border-2 ${
+                    isActive
+                      ? 'bg-primary-600 text-white shadow-md border-primary-700'
+                      : 'bg-primary-50 text-primary-700 hover:bg-primary-100 border-primary-600'
+                  }`}
+                >
+                  {filter.label}
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -360,6 +386,58 @@ const EnvironmentalFilters: React.FC<EnvironmentalFiltersProps> = ({
                     </div>
                   )}
                 </div>
+              </div>
+
+              {/* Regiones */}
+              <div>
+                <h3 className="text-sm font-semibold text-neutral-700 mb-3 flex items-center gap-2">
+                  <span className="text-success-600">🌎</span>
+                  Regiones ({availableOptions.regiones.length} disponibles)
+                </h3>
+                <div className="flex flex-wrap gap-2">
+                  {availableOptions.regiones.map((region, index) => (
+                    <button
+                      key={index}
+                      onClick={() => {
+                        const newRegiones = activeFilters.region.includes(region)
+                          ? activeFilters.region.filter(r => r !== region)
+                          : [...activeFilters.region, region];
+                        handleFilterChange('region', newRegiones);
+                      }}
+                      className={`px-2 py-1 rounded text-xs font-medium transition-all border-2 ${
+                        activeFilters.region.includes(region)
+                          ? 'bg-success-600 text-white shadow-md border-success-700'
+                          : 'bg-success-50 text-success-700 hover:bg-success-100 border-success-600'
+                      }`}
+                    >
+                      {region}
+                    </button>
+                  ))}
+                  {availableOptions.regiones.length === 0 && (
+                    <div className="text-sm text-neutral-500 py-2">
+                      No se encontraron regiones en los datos
+                    </div>
+                  )}
+                </div>
+                {/* Selected Regions Chips */}
+                {activeFilters.region.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {activeFilters.region.map((region, index) => (
+                      <span key={index} className="status-success text-xs px-2 py-1 flex items-center gap-1">
+                        🌎 {region}
+                        <button
+                          onClick={() => {
+                            const newRegiones = activeFilters.region.filter(r => r !== region);
+                            handleFilterChange('region', newRegiones);
+                          }}
+                          className="text-success-600 hover:text-success-800 font-bold ml-1"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Areas Temáticas */}
