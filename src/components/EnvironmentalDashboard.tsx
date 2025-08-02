@@ -147,9 +147,9 @@ const EnvironmentalDashboard: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {/* Header Rediseñado */}
         <header className="dashboard-header p-6 mb-8 animate-fade-in">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+          <div className="flex flex-col items-center text-center gap-4">
             {/* Branding y título */}
-            <div className="flex items-start gap-4">
+            <div className="flex flex-col items-center gap-4">
               <div className="flex-shrink-0">
                 <div className="w-20 h-20 bg-white rounded-xl flex items-center justify-center shadow-lg border-2 border-primary-200">
                   <img 
@@ -166,14 +166,14 @@ const EnvironmentalDashboard: React.FC = () => {
                   </div>
                 </div>
               </div>
-              <div className="min-w-0 flex-1">
+              <div className="text-center">
                 <h1 className="dashboard-title text-balance">
                   Dashboard Ambiental SENPA
                 </h1>
                 <p className="dashboard-subtitle mt-1">
                   Sistema de Monitoreo de Operaciones Ambientales
                 </p>
-                <div className="flex items-center gap-4 mt-3">
+                <div className="flex items-center justify-center gap-4 mt-3">
                   <time className="text-sm text-neutral-500">
                     {new Date().toLocaleDateString('es-ES', { 
                       weekday: 'long', 
@@ -201,9 +201,9 @@ const EnvironmentalDashboard: React.FC = () => {
             </div>
 
             {/* Controles de acción */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
               {/* Info de última actualización */}
-              <div className="hidden lg:block text-right">
+              <div className="hidden lg:block text-center">
                 <div className="text-xs text-neutral-500 mb-1">
                   Última actualización
                 </div>
