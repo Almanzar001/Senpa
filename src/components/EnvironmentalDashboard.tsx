@@ -158,7 +158,10 @@ const EnvironmentalDashboard: React.FC = () => {
                     className="w-16 h-16 object-contain"
                     onError={(e) => {
                       e.currentTarget.style.display = 'none';
-                      e.currentTarget.nextElementSibling.style.display = 'block';
+                      const nextSibling = e.currentTarget.nextElementSibling as HTMLElement;
+                      if (nextSibling) {
+                        nextSibling.style.display = 'block';
+                      }
                     }}
                   />
                   <div className="hidden text-green-600 font-bold text-xs text-center">

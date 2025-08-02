@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
   Table,
@@ -30,7 +30,6 @@ import {
   Download as DownloadIcon,
   Visibility as ViewIcon,
   ArrowBack as BackIcon,
-  FilterList as FilterIcon,
   Clear as ClearIcon
 } from '@mui/icons-material';
 import { useData } from '../contexts/DataContext';
@@ -89,7 +88,7 @@ const OperationsPage: React.FC = () => {
           break;
         case 'procuraduria':
           filtered = filtered.filter(c => 
-            c.procuraduria && c.procuraduria > 0
+            c.procuraduria === true
           );
           break;
       }
@@ -108,7 +107,7 @@ const OperationsPage: React.FC = () => {
     return filtered;
   }, [filteredCases, searchTerm, filterType, filterValue]);
 
-  const handleChangePage = (event: unknown, newPage: number) => {
+  const handleChangePage = (_event: unknown, newPage: number) => {
     setPage(newPage);
   };
 
