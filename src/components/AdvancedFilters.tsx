@@ -216,27 +216,37 @@ const AdvancedFilters: React.FC<AdvancedFiltersProps> = ({
 
         {/* Quick Date Filters */}
         <div className="flex flex-wrap gap-2 mb-4">
-          {quickDateFilters.map((filter, index) => (
-            <Chip
-              key={index}
-              label={filter.label}
-              onClick={() => {
-                onFiltersChange({
-                  ...activeFilters,
-                  dateFrom: filter.from,
-                  dateTo: filter.to
-                });
-              }}
-              variant={
-                activeFilters.dateFrom === filter.from && activeFilters.dateTo === filter.to
-                  ? 'filled'
-                  : 'outlined'
-              }
-              color="primary"
-              size="small"
-              className="cursor-pointer"
-            />
-          ))}
+          {quickDateFilters.map((filter, index) => {
+            const isActive = activeFilters.dateFrom === filter.from && activeFilters.dateTo === filter.to;
+            
+            return (
+              <Chip
+                key={index}
+                label={filter.label}
+                onClick={() => {
+                  if (isActive) {
+                    // If already active, clear the filter
+                    onFiltersChange({
+                      ...activeFilters,
+                      dateFrom: '',
+                      dateTo: ''
+                    });
+                  } else {
+                    // Set this filter and clear any other date filters
+                    onFiltersChange({
+                      ...activeFilters,
+                      dateFrom: filter.from,
+                      dateTo: filter.to
+                    });
+                  }
+                }}
+                variant={isActive ? 'filled' : 'outlined'}
+                color="primary"
+                size="small"
+                className="cursor-pointer"
+              />
+            );
+          })}
         </div>
 
         <Collapse in={expanded}>

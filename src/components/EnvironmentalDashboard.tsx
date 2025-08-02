@@ -22,7 +22,7 @@ const EnvironmentalDashboard: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState(0);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
-  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [autoRefresh, setAutoRefresh] = useState(false);
   const [refreshInterval, setRefreshInterval] = useState(30); // segundos
   const [settingsOpen, setSettingsOpen] = useState(false);
 
@@ -151,8 +151,19 @@ const EnvironmentalDashboard: React.FC = () => {
             {/* Branding y título */}
             <div className="flex items-start gap-4">
               <div className="flex-shrink-0">
-                <div className="w-12 h-12 bg-primary-600 rounded-xl flex items-center justify-center shadow-lg">
-                  <span className="text-white text-3xl">🌿</span>
+                <div className="w-20 h-20 bg-white rounded-xl flex items-center justify-center shadow-lg border-2 border-primary-200">
+                  <img 
+                    src="/senpa-logo.png" 
+                    alt="SENPA Logo" 
+                    className="w-16 h-16 object-contain"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                      e.currentTarget.nextElementSibling.style.display = 'block';
+                    }}
+                  />
+                  <div className="hidden text-green-600 font-bold text-xs text-center">
+                    SENPA<br/>LOGO
+                  </div>
                 </div>
               </div>
               <div className="min-w-0 flex-1">
@@ -174,7 +185,12 @@ const EnvironmentalDashboard: React.FC = () => {
                   <div className="flex items-center gap-2">
                     <div className={`w-2 h-2 rounded-full transition-colors duration-300 ${loading ? 'bg-warning-400 animate-pulse' : 'bg-success-500'}`}></div>
                     <span className="text-sm font-medium text-neutral-700">
-                      {environmentalCases.length} casos
+                      {environmentalCases.filter(c => c.fecha && c.fecha.trim()).length} casos válidos
+                      {environmentalCases.length !== environmentalCases.filter(c => c.fecha && c.fecha.trim()).length && (
+                        <span className="text-neutral-500 ml-1">
+                          ({environmentalCases.length - environmentalCases.filter(c => c.fecha && c.fecha.trim()).length} sin fecha)
+                        </span>
+                      )}
                       {loading && (
                         <span className="text-neutral-500 ml-1">(actualizando...)</span>
                       )}
@@ -238,10 +254,6 @@ const EnvironmentalDashboard: React.FC = () => {
                   <span className="hidden lg:inline ml-2">Configuración</span>
                 </button>
                 
-                <Link to="/heatmap" className="btn-sm btn-primary min-w-0" title="Ver Mapa de Calor de Operativos">
-                  <span className="text-base">🗺️</span>
-                  <span className="hidden lg:inline ml-2">Operativos</span>
-                </Link>
                 <Link to="/detainees-map" className="btn-sm btn-secondary min-w-0" title="Ver Mapa de Calor de Detenidos">
                   <span className="text-base">👥</span>
                   <span className="hidden lg:inline ml-2">Detenidos</span>
