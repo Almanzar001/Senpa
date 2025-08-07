@@ -68,7 +68,9 @@ const EnvironmentalFilters: React.FC<EnvironmentalFiltersProps> = ({
 
     const provincias = [...new Set(cases.map(c => c.provincia).filter(p => p))].sort();
     const divisiones = [...new Set(cases.map(c => c.localidad).filter(l => l))].sort();
-    const regiones = [...new Set(cases.map(c => c.region).filter(r => r))].sort();
+    const regiones = [...new Set(cases.map(c => c.region).filter(r => 
+      r && r.toLowerCase() !== 'areas protegida'
+    ))].sort();
     const tiposActividad = [...new Set(cases.map(c => c.tipoActividad).filter(t => t))].sort();
     const areasTemáticas = [...new Set(cases.map(c => c.areaTemática).filter(a => a))].sort();
 

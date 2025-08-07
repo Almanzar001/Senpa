@@ -32,7 +32,6 @@ const Login: React.FC<LoginProps> = ({ user, onAuthChange }) => {
           return;
         }
         
-        console.log('✅ Usuario autorizado:', userEmail);
         onAuthChange(result.user);
       } else {
         // Iniciar redirección

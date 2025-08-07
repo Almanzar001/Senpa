@@ -36,7 +36,6 @@ const EnvironmentalCharts: React.FC<EnvironmentalChartsProps> = ({ cases, filter
   // B. Gráfico de barras horizontales: Tipos de incautaciones más frecuentes
   const incautacionesByType = useMemo(() => {
     const rawData = analyticsService.getIncautacionesByType(filteredCases);
-    console.log('🔍 Datos del servicio:', rawData);
     
     // Solo limpiar las etiquetas finales para mostrar, sin afectar la agrupación
     const cleanedData = rawData.map(item => ({
@@ -47,7 +46,6 @@ const EnvironmentalCharts: React.FC<EnvironmentalChartsProps> = ({ cases, filter
         .trim()
     })).filter(item => item.tipo && item.tipo.length > 0 && item.cantidad > 0);
     
-    console.log('🔍 Datos finales para gráfico:', cleanedData);
     return cleanedData;
   }, [filteredCases, analyticsService]);
 

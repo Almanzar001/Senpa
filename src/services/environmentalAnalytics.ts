@@ -267,16 +267,13 @@ class EnvironmentalAnalyticsService {
         const cantidad = cantidadCol >= 0 ? String(row[cantidadCol] || '1').trim() : '1';
         
         if (tipoIncautacion) {  // Solo agregar si hay un tipo válido
-          
           envCase.incautaciones.push(`${cantidad} ${tipoIncautacion}`);
           if (!envCase.incautacionesInfo) envCase.incautacionesInfo = [];
           envCase.incautacionesInfo.push({
             tipo: tipoIncautacion,
             cantidad: cantidad
           });
-        } else {
         }
-      } else {
       }
     }
 
@@ -368,8 +365,9 @@ class EnvironmentalAnalyticsService {
 
   // Aplicar filtros a los casos
   applyFilters(cases: EnvironmentalCase[], filters?: EnvironmentalFilters): EnvironmentalCase[] {
-    
-    if (!filters) return cases;
+    if (!filters) {
+      return cases;
+    }
 
     const filteredCases = cases.filter(envCase => {
       // Filtro de fecha
@@ -419,10 +417,6 @@ class EnvironmentalAnalyticsService {
               caseDate = testDate;
             }
           }
-          
-          if (!caseDate || isNaN(caseDate.getTime())) {
-            // Failed to parse date
-          }
         }
         
         if (caseDate && !isNaN(caseDate.getTime())) {
@@ -457,7 +451,10 @@ class EnvironmentalAnalyticsService {
         const matchesRegion = filters.region.some(r =>
           envCase.region && envCase.region.toLowerCase().includes(r.toLowerCase())
         );
-        if (!matchesRegion) return false;
+        
+        if (!matchesRegion) {
+          return false;
+        }
       }
 
       // Filtro de tipo de actividad
@@ -487,7 +484,9 @@ class EnvironmentalAnalyticsService {
           ...envCase.incautaciones
         ].join(' ').toLowerCase();
         
-        if (!searchableText.includes(searchLower)) return false;
+        if (!searchableText.includes(searchLower)) {
+          return false;
+        }
       }
 
       return true;
@@ -500,7 +499,10 @@ class EnvironmentalAnalyticsService {
   getFilterOptions(cases: EnvironmentalCase[]) {
     const provincias = [...new Set(cases.map(c => c.provincia).filter(p => p))].sort();
     const tiposActividad = [...new Set(cases.map(c => c.tipoActividad).filter(t => t))].sort();
-    const areasTemáticas = [...new Set(cases.map(c => c.areaTemática).filter(a => a))].sort();
+    
+    // Obtener todas las áreas temáticas directamente de los datos (valores exactos de la columna)
+    const areasTemáticas = [...new Set(cases.map(c => c.areaTemática).filter(a => a && a.trim() !== ''))].sort();
+    
     const localidades = [...new Set(cases.map(c => c.localidad).filter(l => l))].sort();
 
     return {
@@ -538,7 +540,6 @@ class EnvironmentalAnalyticsService {
     const incautacionCount = new Map<string, number>();
     
     cases.forEach(envCase => {
-      
       // Usar incautacionesInfo si está disponible (más preciso)
       if (envCase.incautacionesInfo && envCase.incautacionesInfo.length > 0) {
         envCase.incautacionesInfo.forEach((info: any) => {
@@ -547,7 +548,6 @@ class EnvironmentalAnalyticsService {
           
           // Capitalizar primera letra
           tipo = tipo.charAt(0).toUpperCase() + tipo.slice(1);
-          
           
           if (tipo && tipo.length > 0) {
             const cantidadAnterior = incautacionCount.get(tipo) || 0;
@@ -558,7 +558,6 @@ class EnvironmentalAnalyticsService {
       } else {
         // Fallback: parsear las strings de incautaciones
         envCase.incautaciones.forEach(incautacion => {
-          
           // Extraer cantidad (números al inicio)
           const cantidadMatch = incautacion.match(/^(\d+)\s*/);
           const cantidad = cantidadMatch ? parseInt(cantidadMatch[1]) : 1;
@@ -574,7 +573,6 @@ class EnvironmentalAnalyticsService {
           
           // Capitalizar primera letra
           tipo = tipo.charAt(0).toUpperCase() + tipo.slice(1);
-          
           
           if (tipo && tipo.length > 0) {
             const cantidadAnterior = incautacionCount.get(tipo) || 0;
@@ -607,6 +605,173 @@ class EnvironmentalAnalyticsService {
     return Array.from(nationalityCount.entries())
       .map(([nacionalidad, cantidad]) => ({ nacionalidad, cantidad }))
       .sort((a, b) => b.cantidad - a.cantidad);
+  }
+  
+  generateTablaResumenAreasTematicas(cases: EnvironmentalCase[]): any[] {
+    // Definir códigos de color para cada categoría de fila
+    const coloresPorCategoria: Record<string, {backgroundColor: string, borderColor: string, textColor: string}> = {
+      'Patrullas': {
+        backgroundColor: '#E3F2FD',  // Azul claro
+        borderColor: '#1976D2',     // Azul
+        textColor: '#0D47A1'        // Azul oscuro
+      },
+      'Operativos': {
+        backgroundColor: '#E8F5E8',  // Verde claro
+        borderColor: '#388E3C',     // Verde
+        textColor: '#1B5E20'        // Verde oscuro
+      },
+      'Detenidos': {
+        backgroundColor: '#FFF3E0',  // Naranja claro
+        borderColor: '#F57C00',     // Naranja
+        textColor: '#E65100'        // Naranja oscuro
+      },
+      'Vehículos Retenidos': {
+        backgroundColor: '#FCE4EC',  // Rosa claro
+        borderColor: '#C2185B',     // Rosa
+        textColor: '#880E4F'        // Rosa oscuro
+      }
+    };
+    
+    // Definir mapeo flexible de áreas temáticas
+    const areasMapping = {
+      'Suelos y Aguas': ['suelos', 'aguas', 'agua', 'suelo', 'hidrico', 'hidrica', 'recurso hidrico', 'recursos hidricos', 'contaminacion', 'contaminación'],
+      'Recursos Forestales': ['forestales', 'forestal', 'bosque', 'arboles', 'madera', 'flora', 'deforestacion', 'deforestación'],
+      'Areas Protegida': ['protegida', 'protegidas', 'area protegida', 'areas protegidas', 'parque', 'reserva', 'patrimonio'],
+      'Gestion Ambiental': ['gestion', 'gestión', 'ambiental', 'gestion ambiental', 'gestión ambiental', 'impacto ambiental'],
+      'Costeros y Marinos': ['costeros', 'marinos', 'marino', 'costero', 'costa', 'mar', 'playa', 'litoral', 'oceanico', 'oceánico']
+    };
+    
+    // Función para verificar si un área coincide con alguna categoría
+    const findMatchingCategory = (areaTexto: string) => {
+      if (!areaTexto) return null;
+      const areaLower = areaTexto.toLowerCase().trim();
+      
+      for (const [categoria, keywords] of Object.entries(areasMapping)) {
+        if (keywords.some(keyword => areaLower.includes(keyword))) {
+          return categoria;
+        }
+      }
+      return null;
+    };
+    
+    // Obtener todas las regiones únicas, excluyendo "Areas Protegida" que no es una región válida
+    const regionesRaw = [...new Set(cases.map(c => c.region).filter(r => 
+      r && r.trim() !== '' && r.toLowerCase() !== 'areas protegida'
+    ))];
+    
+    // Ordenar las regiones numéricamente
+    const regiones = regionesRaw.sort((a, b) => {
+      // Extraer números de las regiones para ordenamiento correcto
+      const getNumeroRegion = (region: string) => {
+        const match = region.match(/(\d+)/);
+        return match ? parseInt(match[1], 10) : 999;
+      };
+      
+      const numA = getNumeroRegion(a);
+      const numB = getNumeroRegion(b);
+      
+      // Si ambos tienen números, ordenar por número
+      if (numA !== 999 && numB !== 999) {
+        return numA - numB;
+      }
+      
+      // Si solo uno tiene número, el que tiene número va primero
+      if (numA !== 999) return -1;
+      if (numB !== 999) return 1;
+      
+      // Si ninguno tiene número, ordenar alfabéticamente
+      return a.localeCompare(b);
+    });
+    
+    // Crear estructura de datos para la tabla
+    const categorias = ['Patrullas', 'Operativos', 'Detenidos', 'Vehículos Retenidos'];
+    const areasObjetivo = ['Suelos y Aguas', 'Recursos Forestales', 'Areas Protegida', 'Gestion Ambiental', 'Costeros y Marinos'];
+    const tablaData: any[] = [];
+    
+    // Para cada categoría y cada área temática objetivo, crear una fila
+    categorias.forEach(categoria => {
+      areasObjetivo.forEach(areaObjetivo => {
+        const filaData: any = {
+          categoria: categoria,
+          areaTematica: areaObjetivo,
+          regiones: {},
+          // Añadir información de colores para esta categoría
+          colores: coloresPorCategoria[categoria] || {
+            backgroundColor: '#F5F5F5',
+            borderColor: '#BDBDBD',
+            textColor: '#424242'
+          }
+        };
+        
+        // Calcular datos para cada región
+        let totalFila = 0;
+        regiones.forEach(region => {
+          let totalRegion = 0;
+          
+          switch (categoria) {
+            case 'Patrullas':
+              // Filtrar casos que sean patrullas AND del área temática AND de la región
+              const patrullasCasos = cases.filter(c => {
+                const esPatrulla = c.tipoActividad && c.tipoActividad.toLowerCase().includes('patrulla');
+                const categoriaDelCaso = findMatchingCategory(c.areaTemática);
+                const esAreaCorrecta = categoriaDelCaso === areaObjetivo;
+                const esRegionCorrecta = c.region === region;
+                
+                return esPatrulla && esAreaCorrecta && esRegionCorrecta;
+              });
+              totalRegion = patrullasCasos.length;
+              break;
+              
+            case 'Operativos':
+              // Filtrar casos que sean operativos AND del área temática AND de la región
+              const operativosCasos = cases.filter(c => {
+                const esOperativo = c.tipoActividad && c.tipoActividad.toLowerCase().includes('operativo');
+                const categoriaDelCaso = findMatchingCategory(c.areaTemática);
+                const esAreaCorrecta = categoriaDelCaso === areaObjetivo;
+                const esRegionCorrecta = c.region === region;
+                
+                return esOperativo && esAreaCorrecta && esRegionCorrecta;
+              });
+              totalRegion = operativosCasos.length;
+              break;
+              
+            case 'Detenidos':
+              // Para detenidos, primero filtrar por área temática y región, luego contar detenidos
+              const casosAreaRegion = cases.filter(c => {
+                const categoriaDelCaso = findMatchingCategory(c.areaTemática);
+                const esAreaCorrecta = categoriaDelCaso === areaObjetivo;
+                const esRegionCorrecta = c.region === region;
+                
+                return esAreaCorrecta && esRegionCorrecta;
+              });
+              totalRegion = casosAreaRegion.reduce((sum, c) => sum + (c.detenidos || 0), 0);
+              break;
+              
+            case 'Vehículos Retenidos':
+              // Para vehículos, primero filtrar por área temática y región, luego contar vehículos
+              const casosAreaRegionVehiculos = cases.filter(c => {
+                const categoriaDelCaso = findMatchingCategory(c.areaTemática);
+                const esAreaCorrecta = categoriaDelCaso === areaObjetivo;
+                const esRegionCorrecta = c.region === region;
+                
+                return esAreaCorrecta && esRegionCorrecta;
+              });
+              totalRegion = casosAreaRegionVehiculos.reduce((sum, c) => sum + (c.vehiculosDetenidos || 0), 0);
+              break;
+          }
+          
+          filaData.regiones[region] = totalRegion;
+          totalFila += totalRegion;
+        });
+        
+        filaData.total = totalFila;
+        
+        // Agregar TODAS las filas, incluso si no tienen datos (mostrar 0s)
+        tablaData.push(filaData);
+      });
+    });
+    
+    return tablaData;
   }
 
   getVehiclesByType(cases: EnvironmentalCase[]): any[] {

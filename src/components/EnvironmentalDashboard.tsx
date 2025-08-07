@@ -261,6 +261,11 @@ const EnvironmentalDashboard: React.FC = () => {
                   <span className="text-base">👥</span>
                   <span className="hidden lg:inline ml-2">Detenidos</span>
                 </Link>
+
+                <Link to="/chart-builder" className="btn-sm btn-primary min-w-0" title="Constructor de Gráficos">
+                  <span className="text-base">📊</span>
+                  <span className="hidden lg:inline ml-2">Gráficos</span>
+                </Link>
               </div>
             </div>
           </div>

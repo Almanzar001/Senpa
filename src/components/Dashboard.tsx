@@ -66,7 +66,6 @@ const Dashboard: React.FC<DashboardProps> = ({ spreadsheetId, apiKey }) => {
       try {
         const sheetsService = new GoogleSheetsService(apiKey);
         const sheetsData = await sheetsService.getMultipleSheets(spreadsheetId);
-        console.log('Loaded sheets data:', sheetsData);
         setSheets(sheetsData);
         setError(null);
       } catch (err) {
@@ -106,7 +105,6 @@ const Dashboard: React.FC<DashboardProps> = ({ spreadsheetId, apiKey }) => {
 
   if (error) {
     // Si hay error, mostrar la demostración con datos de ejemplo
-    console.log('Error loading data, showing demo:', error);
     return <DemoData />;
   }
 

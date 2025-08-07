@@ -33,13 +33,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
-      console.log('🔍 Auth state changed:', user?.email);
       
       if (user && user.email && isEmailAuthorized(user.email)) {
-        console.log('✅ Usuario autorizado:', user.email);
         setUser(user);
       } else if (user) {
-        console.log('❌ Usuario no autorizado:', user.email);
         // Cerrar sesión automáticamente si no está autorizado
         auth.signOut();
         setUser(null);
@@ -56,7 +53,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const { getRedirectResult } = await import('firebase/auth');
         const result = await getRedirectResult(auth);
         if (result) {
-          console.log('🔄 Resultado de redirección obtenido');
         }
       } catch (error) {
         console.error('Error verificando redirección:', error);
