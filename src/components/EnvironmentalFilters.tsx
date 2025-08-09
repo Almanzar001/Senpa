@@ -64,7 +64,13 @@ const EnvironmentalFilters: React.FC<EnvironmentalFiltersProps> = ({
 
   // Extract unique values from cases
   useEffect(() => {
-    if (!cases || cases.length === 0) return;
+    if (!cases || cases.length === 0) {
+      console.log('🔍 EnvironmentalFilters: No hay casos disponibles');
+      return;
+    }
+
+    console.log('🔍 EnvironmentalFilters: Analizando casos:', cases.length);
+    console.log('🔍 EnvironmentalFilters: Primer caso:', cases[0]);
 
     const provincias = [...new Set(cases.map(c => c.provincia).filter(p => p))].sort();
     const divisiones = [...new Set(cases.map(c => c.localidad).filter(l => l))].sort();
@@ -73,6 +79,10 @@ const EnvironmentalFilters: React.FC<EnvironmentalFiltersProps> = ({
     ))].sort();
     const tiposActividad = [...new Set(cases.map(c => c.tipoActividad).filter(t => t))].sort();
     const areasTemáticas = [...new Set(cases.map(c => c.areaTemática).filter(a => a))].sort();
+
+    console.log('🔍 EnvironmentalFilters: Regiones encontradas:', regiones);
+    console.log('🔍 EnvironmentalFilters: Provincias encontradas:', provincias);
+    console.log('🔍 EnvironmentalFilters: Tipos de actividad encontrados:', tiposActividad);
 
     setAvailableOptions({
       provincias,

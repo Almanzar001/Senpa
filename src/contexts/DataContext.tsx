@@ -61,8 +61,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const cases = useMemo(() => {
-    if (!sheets || sheets.length === 0) return [];
-    return analyticsService.analyzeSheetsData(sheets);
+    if (!sheets || sheets.length === 0) {
+      console.log('🔍 DataContext: No hay hojas disponibles');
+      return [];
+    }
+    console.log('🔍 DataContext: Procesando hojas:', sheets.length);
+    const processedCases = analyticsService.analyzeSheetsData(sheets);
+    console.log('🔍 DataContext: Casos procesados:', processedCases.length);
+    if (processedCases.length > 0) {
+      console.log('🔍 DataContext: Primer caso procesado:', processedCases[0]);
+    }
+    return processedCases;
   }, [sheets, analyticsService]);
 
   const filteredCases = useMemo(() => {
