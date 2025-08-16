@@ -17,8 +17,8 @@ import {
   AreaChart,
 } from 'recharts';
 import { Card, CardContent, Typography } from '@mui/material';
-import { type SheetData } from '../services/googleSheets';
-import GoogleSheetsService from '../services/googleSheets';
+import { type SheetData } from '../services/supabase';
+import SupabaseService from '../services/supabase';
 import { type FilterOptions } from './AdvancedFilters';
 
 interface SheetVisualizationProps {
@@ -32,8 +32,8 @@ const COLORS = [
 ];
 
 const SheetVisualization: React.FC<SheetVisualizationProps> = ({ sheetData }) => {
-  const sheetsService = new GoogleSheetsService('');
-  const { headers, rows } = sheetsService.processSheetData(sheetData);
+  const supabaseService = new SupabaseService();
+  const { headers, rows } = supabaseService.processTableData(sheetData);
 
   const chartData = useMemo(() => {
     if (rows.length === 0 || headers.length === 0) return [];

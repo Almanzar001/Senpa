@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { type SheetData } from '../services/googleSheets';
+import { type SheetData } from '../services/supabase';
 import { type FilterOptions } from '../components/AdvancedFilters';
 
 export const useFilteredData = (sheetsData: SheetData[], filters: FilterOptions) => {

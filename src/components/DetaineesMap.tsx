@@ -35,7 +35,7 @@ const DetaineesMap: React.FC = () => {
 
   const { isLoaded, loadError } = useJsApiLoader({
     id: 'google-map-script',
-    googleMapsApiKey: CONFIG.API_KEY,
+    googleMapsApiKey: CONFIG.GOOGLE_MAPS_API_KEY,
     libraries: libraries,
   });
 

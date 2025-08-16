@@ -1,4 +1,4 @@
-import { type SheetData } from './googleSheets';
+import { type SheetData } from './supabase';
 
 export interface EnvironmentalCase {
   numeroCaso: string;

@@ -6,7 +6,7 @@ import {
   Person as PersonIcon,
   Report as ReportIcon
 } from '@mui/icons-material';
-import { type SheetData } from '../services/googleSheets';
+import { type SheetData } from '../services/supabase';
 import { type FilterOptions } from './AdvancedFilters';
 
 interface OperationalSummaryProps {

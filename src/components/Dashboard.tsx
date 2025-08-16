@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CircularProgress, Tabs, Tab, Box } from '@mui/material';
 import { Dashboard as DashboardIcon, TableChart, BarChart, PieChart } from '@mui/icons-material';
-import GoogleSheetsService, { type SheetData } from '../services/googleSheets';
+import { type SheetData } from '../services/supabase';
 import SheetVisualization from './SheetVisualization';
 import DataTable from './DataTable';
 import SpecificMetrics from './SpecificMetrics';
@@ -11,10 +11,10 @@ import AdvancedFilters, { type FilterOptions } from './AdvancedFilters';
 import FilterSummary from './FilterSummary';
 import ExportButton from './ExportButton';
 import { useFilteredData } from '../hooks/useFilteredData';
+import { useData } from '../contexts/DataContext';
 
 interface DashboardProps {
-  spreadsheetId: string;
-  apiKey: string;
+  // Props vacío ya que ahora usa DataContext
 }
 
 interface TabPanelProps {
@@ -39,10 +39,7 @@ function TabPanel(props: TabPanelProps) {
   );
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ spreadsheetId, apiKey }) => {
-  const [sheets, setSheets] = useState<SheetData[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+const Dashboard: React.FC<DashboardProps> = () => {
   const [activeTab, setActiveTab] = useState(0);
   const [viewMode, setViewMode] = useState<'table' | 'chart'>('table');
   const [filters, setFilters] = useState<FilterOptions>({
@@ -55,29 +52,19 @@ const Dashboard: React.FC<DashboardProps> = ({ spreadsheetId, apiKey }) => {
     searchText: ''
   });
 
-  useEffect(() => {
-    const fetchData = async () => {
-      if (!spreadsheetId || !apiKey || apiKey === 'TU_NUEVA_API_KEY_AQUI') {
-        setError('⚠️ API Key no configurada. Por favor, sigue las instrucciones en API_KEY_SETUP.md para generar una nueva API Key de Google Cloud Console.');
-        setLoading(false);
-        return;
-      }
-
-      try {
-        const sheetsService = new GoogleSheetsService(apiKey);
-        const sheetsData = await sheetsService.getMultipleSheets(spreadsheetId);
-        setSheets(sheetsData);
-        setError(null);
-      } catch (err) {
-        console.error('Error loading sheets:', err);
-        setError(err instanceof Error ? err.message : 'An error occurred');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, [spreadsheetId, apiKey]);
+  // Usar el DataContext para obtener los datos de Supabase
+  const { cases, loading, error } = useData();
+  
+  // Convertir los casos a formato SheetData para mantener compatibilidad
+  const sheets: SheetData[] = cases.length > 0 ? [
+    {
+      name: 'supabase_data',
+      data: [
+        Object.keys(cases[0]),
+        ...cases.map(caso => Object.values(caso))
+      ]
+    }
+  ] : [];
 
   const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
     setActiveTab(newValue);

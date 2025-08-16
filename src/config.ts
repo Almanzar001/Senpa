@@ -1,10 +1,14 @@
 // Configuración del Dashboard SENPA
 export const CONFIG = {
-  // Google Sheets Configuration
-  SPREADSHEET_ID: '1BvGRbTzzVGYX-xx54NbFQq_CZ1TgxtNRf1od682OzLM',
+  // Supabase Configuration
+  SUPABASE_URL: 'https://nnsupabasenn.coman2uniformes.com',
+  SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyAgCiAgICAicm9sZSI6ICJhbm9uIiwKICAgICJpc3MiOiAic3VwYWJhc2UtZGVtbyIsCiAgICAiaWF0IjogMTY0MTc2OTIwMCwKICAgICJleHAiOiAxNzk5NTM1NjAwCn0.dc_X5iR_VP_qT0zsiyj_I_OZ2T9FtRU2BBNWN8Bu4GE',
   
-  // ⚠️ IMPORTANTE: Reemplaza con tu nueva API Key de Google Cloud Console
-  API_KEY: 'AIzaSyBHGUl0z_04j-2oRM8jqSchBnY6x9ld39c',
+  // Lista de tablas de Supabase
+  SUPABASE_TABLES: ['notas_informativas', 'detenidos', 'incautaciones', 'vehiculos'],
+  
+  // Google Maps API Key (solo para mapas)
+  GOOGLE_MAPS_API_KEY: 'AIzaSyBHGUl0z_04j-2oRM8jqSchBnY6x9ld39c',
   
   // Dashboard Settings
   DASHBOARD_TITLE: 'Dashboard Operativo SENPA',
@@ -23,9 +27,8 @@ export const CONFIG = {
 
 // Función para validar la configuración
 export const isConfigValid = (): boolean => {
-  return CONFIG.API_KEY !== 'TU_NUEVA_API_KEY_AQUI' && 
-         CONFIG.API_KEY.length > 20 && 
-         CONFIG.SPREADSHEET_ID.length > 0;
+  return CONFIG.SUPABASE_URL.length > 0 && 
+         CONFIG.SUPABASE_ANON_KEY.length > 0;
 };
 
 // Función para obtener la fecha actual en formato español

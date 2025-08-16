@@ -22,7 +22,7 @@ import {
   Flag as StatusIcon,
   Map as ProvinceIcon
 } from '@mui/icons-material';
-import { type SheetData } from '../services/googleSheets';
+import { type SheetData } from '../services/supabase';
 
 export interface FilterOptions {
   dateFrom: string;

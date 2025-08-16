@@ -13,8 +13,8 @@ import {
   Chip,
 } from '@mui/material';
 import { Search as SearchIcon } from '@mui/icons-material';
-import { type SheetData } from '../services/googleSheets';
-import GoogleSheetsService from '../services/googleSheets';
+import { type SheetData } from '../services/supabase';
+import SupabaseService from '../services/supabase';
 import { type FilterOptions } from './AdvancedFilters';
 
 interface DataTableProps {
@@ -27,8 +27,8 @@ const DataTable: React.FC<DataTableProps> = ({ sheetData }) => {
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [searchTerm, setSearchTerm] = useState('');
 
-  const sheetsService = new GoogleSheetsService('');
-  const { headers, rows } = sheetsService.processSheetData(sheetData);
+  const supabaseService = new SupabaseService();
+  const { headers, rows } = supabaseService.processTableData(sheetData);
 
   const filteredRows = useMemo(() => {
     let result = rows;

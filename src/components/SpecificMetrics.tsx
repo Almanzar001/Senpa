@@ -8,7 +8,7 @@ import {
   Warning as WarningIcon,
   CheckCircle as CheckCircleIcon
 } from '@mui/icons-material';
-import { type SheetData } from '../services/googleSheets';
+import { type SheetData } from '../services/supabase';
 import { type FilterOptions } from './AdvancedFilters';
 
 interface SpecificMetricsProps {

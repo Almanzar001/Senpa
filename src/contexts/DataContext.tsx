@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
-import GoogleSheetsService, { type SheetData } from '../services/googleSheets';
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
+import SupabaseService, { type SheetData } from '../services/supabase';
 import EnvironmentalAnalyticsService, { type EnvironmentalCase, type EnvironmentalFilters } from '../services/environmentalAnalytics';
 import { CONFIG } from '../config';
 
@@ -35,26 +35,41 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const analyticsService = useMemo(() => new EnvironmentalAnalyticsService(), []);
 
-  const fetchData = async () => {
-    if (!CONFIG.SPREADSHEET_ID || !CONFIG.API_KEY || CONFIG.API_KEY === 'TU_NUEVA_API_KEY_AQUI') {
-      setError("API Key o Spreadsheet ID no configurados.");
+  const fetchData = useCallback(async () => {
+    if (!CONFIG.SUPABASE_URL || !CONFIG.SUPABASE_ANON_KEY) {
+      setError("Configuración de Supabase no válida.");
       setLoading(false);
       return;
     }
 
     try {
       setLoading(true);
-      const sheetsService = new GoogleSheetsService(CONFIG.API_KEY);
-      const allSheets = await sheetsService.getAllSheets(CONFIG.SPREADSHEET_ID);
-      const sheetsData = await sheetsService.getMultipleSheets(CONFIG.SPREADSHEET_ID, allSheets);
-      setSheets(sheetsData);
+      const supabaseService = new SupabaseService();
+      
+      // Si hay tablas específicas configuradas, usarlas
+      if (CONFIG.SUPABASE_TABLES && CONFIG.SUPABASE_TABLES.length > 0) {
+        const tablesData = await supabaseService.getMultipleTables(CONFIG.SUPABASE_TABLES);
+        setSheets(tablesData);
+      } else {
+        // Intentar obtener todas las tablas disponibles
+        const allTables = await supabaseService.getAllTables();
+        if (allTables.length > 0) {
+          const tablesData = await supabaseService.getMultipleTables(allTables);
+          setSheets(tablesData);
+        } else {
+          setError("No se encontraron tablas en Supabase. Configura SUPABASE_TABLES en config.ts");
+          setLoading(false);
+          return;
+        }
+      }
+      
       setError(null);
     } catch (err: any) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchData();
@@ -62,16 +77,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const cases = useMemo(() => {
     if (!sheets || sheets.length === 0) {
-      console.log('🔍 DataContext: No hay hojas disponibles');
       return [];
     }
-    console.log('🔍 DataContext: Procesando hojas:', sheets.length);
-    const processedCases = analyticsService.analyzeSheetsData(sheets);
-    console.log('🔍 DataContext: Casos procesados:', processedCases.length);
-    if (processedCases.length > 0) {
-      console.log('🔍 DataContext: Primer caso procesado:', processedCases[0]);
-    }
-    return processedCases;
+    return analyticsService.analyzeSheetsData(sheets);
   }, [sheets, analyticsService]);
 
   const filteredCases = useMemo(() => {

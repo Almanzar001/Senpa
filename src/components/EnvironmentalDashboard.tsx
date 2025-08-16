@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useData } from '../contexts/DataContext';
 import EnvironmentalMetrics from './EnvironmentalMetrics';
@@ -48,21 +48,19 @@ const EnvironmentalDashboard: React.FC = () => {
         clearInterval(intervalId);
       }
     };
-  }, [autoRefresh, refreshInterval, loading]);
+  }, [autoRefresh, refreshInterval, loading, fetchData]);
 
-
-  const handleRefresh = () => {
+  const handleRefresh = useCallback(() => {
     fetchData().then(() => setLastUpdated(new Date()));
-  };
+  }, [fetchData]);
 
-  const toggleAutoRefresh = () => {
+  const toggleAutoRefresh = useCallback(() => {
     setAutoRefresh(!autoRefresh);
-  };
+  }, [autoRefresh]);
 
-
-  const MemoizedEnvironmentalMetrics = React.memo(EnvironmentalMetrics);
-  const MemoizedEnvironmentalCharts = React.memo(EnvironmentalCharts);
-  const MemoizedEnvironmentalTable = React.memo(EnvironmentalTable);
+  const MemoizedEnvironmentalMetrics = useMemo(() => React.memo(EnvironmentalMetrics), []);
+  const MemoizedEnvironmentalCharts = useMemo(() => React.memo(EnvironmentalCharts), []);
+  const MemoizedEnvironmentalTable = useMemo(() => React.memo(EnvironmentalTable), []);
 
   if (loading) {
     return (
