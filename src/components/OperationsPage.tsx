@@ -1,92 +1,93 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
-  TextField,
-  InputAdornment,
-  Chip,
   Typography,
   Card,
   CardContent,
-  Breadcrumbs
+  Breadcrumbs,
+  Alert
 } from '@mui/material';
 import { 
-  Search as SearchIcon,
-  ArrowBack as BackIcon,
-  Clear as ClearIcon
+  ArrowBack as BackIcon
 } from '@mui/icons-material';
+import type { TableType, NotaInformativa, Detenido, Vehiculo, Incautacion } from '../types/tableTypes';
+import { 
+  notasInformativasService,
+  detenidosService,
+  vehiculosService,
+  incautacionesService
+} from '../services/tableServices';
+import GenericTable from './GenericTable';
 import { useData } from '../contexts/DataContext';
-import { type EnvironmentalCase } from '../services/environmentalAnalytics';
-import EnvironmentalTable from './EnvironmentalTable';
+import { DataMapperService } from '../services/dataMapper';
 
 const OperationsPage: React.FC = () => {
-  const { filteredCases, loading, error, updateCase, deleteCase } = useData();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchParams] = useSearchParams();
+  const { cases, loading: dataLoading, error: dataError } = useData();
+  const [error, setError] = useState<string | null>(null);
+  
+  // Data state for each table type
+  const [notasData, setNotasData] = useState<NotaInformativa[]>([]);
+  const [detenidosData, setDetenidosData] = useState<Detenido[]>([]);
+  const [vehiculosData, setVehiculosData] = useState<Vehiculo[]>([]);
+  const [incautacionesData, setIncautacionesData] = useState<Incautacion[]>([]);
 
   // Get filter from URL params
   const filterType = searchParams.get('filter');
-  const filterValue = searchParams.get('value');
 
-  const filteredAndSearchedCases = useMemo(() => {
-    let filtered = filteredCases;
-    
-    // Apply URL filter if present
-    if (filterType && filterValue) {
-      switch (filterType) {
-        case 'operativos':
-          filtered = filtered.filter(c => 
-            c.tipoActividad && c.tipoActividad.toLowerCase().includes('operativo')
-          );
-          break;
-        case 'patrullas':
-          filtered = filtered.filter(c => 
-            c.tipoActividad && c.tipoActividad.toLowerCase().includes('patrulla')
-          );
-          break;
-        case 'detenidos':
-          filtered = filtered.filter(c => 
-            c.detenidos && c.detenidos > 0
-          );
-          break;
-        case 'vehiculos':
-          filtered = filtered.filter(c => 
-            c.vehiculosDetenidos && c.vehiculosDetenidos > 0
-          );
-          break;
-        case 'incautaciones':
-          filtered = filtered.filter(c => 
-            c.incautaciones && c.incautaciones.length > 0
-          );
-          break;
-        case 'notificados':
-          filtered = filtered.filter(c => 
-            c.notificados && c.notificados > 0
-          );
-          break;
-        case 'procuraduria':
-          filtered = filtered.filter(c => 
-            c.procuraduria === true
-          );
-          break;
+  // Load and map data from existing EnvironmentalCases
+  useEffect(() => {
+    if (cases && cases.length > 0) {
+      try {
+        // Map EnvironmentalCase data to specific table formats
+        const mappedNotas = DataMapperService.mapToNotaInformativa(cases);
+        const mappedDetenidos = DataMapperService.mapToDetenidos(cases);
+        const mappedVehiculos = DataMapperService.mapToVehiculos(cases);
+        const mappedIncautaciones = DataMapperService.mapToIncautaciones(cases);
+
+        // Clear services and populate with mapped data
+        notasInformativasService.items.clear();
+        detenidosService.items.clear();
+        vehiculosService.items.clear();
+        incautacionesService.items.clear();
+
+        mappedNotas.forEach(nota => notasInformativasService.items.set(nota.id, nota));
+        mappedDetenidos.forEach(detenido => detenidosService.items.set(detenido.id, detenido));
+        mappedVehiculos.forEach(vehiculo => vehiculosService.items.set(vehiculo.id, vehiculo));
+        mappedIncautaciones.forEach(incautacion => incautacionesService.items.set(incautacion.id, incautacion));
+
+        // Update state
+        setNotasData(mappedNotas);
+        setDetenidosData(mappedDetenidos);
+        setVehiculosData(mappedVehiculos);
+        setIncautacionesData(mappedIncautaciones);
+        setError(null);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Error al mapear datos');
       }
     }
-    
-    // Apply search filter
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
-      filtered = filtered.filter(caso => 
-        Object.values(caso).some(value => 
-          value && value.toString().toLowerCase().includes(term)
-        )
-      );
-    }
-    
-    return filtered;
-  }, [filteredCases, searchTerm, filterType, filterValue]);
+  }, [cases]);
 
-  const clearFilter = () => {
-    setSearchParams({});
+  // Determine which table to show based on filter
+  const getTableTypeFromFilter = (filter: string): TableType | null => {
+    switch (filter) {
+      case 'operativos':
+      case 'patrullas':
+      case 'notificados':
+      case 'procuraduria':
+        return 'notas_informativas';
+      case 'detenidos':
+        return 'detenidos';
+      case 'vehiculos':
+        return 'vehiculos';
+      case 'incautaciones':
+        return 'incautaciones';
+      default:
+        return null;
+    }
   };
+
+  const currentTableType = filterType ? getTableTypeFromFilter(filterType) : null;
 
   const getFilterDisplayName = (type: string) => {
     const names: Record<string, string> = {
@@ -101,20 +102,84 @@ const OperationsPage: React.FC = () => {
     return names[type] || type;
   };
 
-  // Mapear tipo de filtro a campo específico
-  const getFocusedField = (filterType: string) => {
-    const fieldMapping: Record<string, keyof EnvironmentalCase> = {
-      'detenidos': 'detenidos',
-      'vehiculos': 'vehiculosDetenidos',
-      'notificados': 'notificados',
-      'procuraduria': 'procuraduria',
-      'operativos': 'tipoActividad',
-      'patrullas': 'tipoActividad',
-      'incautaciones': 'incautaciones'
-    };
-    return fieldMapping[filterType];
+  // Generic CRUD handlers
+  const handleUpdate = (item: any) => {
+    try {
+      switch (currentTableType) {
+        case 'notas_informativas':
+          notasInformativasService.update(item as NotaInformativa);
+          setNotasData(notasInformativasService.getAll());
+          break;
+        case 'detenidos':
+          detenidosService.update(item as Detenido);
+          setDetenidosData(detenidosService.getAll());
+          break;
+        case 'vehiculos':
+          vehiculosService.update(item as Vehiculo);
+          setVehiculosData(vehiculosService.getAll());
+          break;
+        case 'incautaciones':
+          incautacionesService.update(item as Incautacion);
+          setIncautacionesData(incautacionesService.getAll());
+          break;
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al actualizar');
+    }
   };
 
+  const handleCreate = (item: any) => {
+    try {
+      switch (currentTableType) {
+        case 'notas_informativas':
+          notasInformativasService.add(item as NotaInformativa);
+          setNotasData(notasInformativasService.getAll());
+          break;
+        case 'detenidos':
+          detenidosService.add(item as Detenido);
+          setDetenidosData(detenidosService.getAll());
+          break;
+        case 'vehiculos':
+          vehiculosService.add(item as Vehiculo);
+          setVehiculosData(vehiculosService.getAll());
+          break;
+        case 'incautaciones':
+          incautacionesService.add(item as Incautacion);
+          setIncautacionesData(incautacionesService.getAll());
+          break;
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al crear');
+    }
+  };
+
+  const handleDelete = (id: string) => {
+    try {
+      switch (currentTableType) {
+        case 'notas_informativas':
+          notasInformativasService.delete(id);
+          setNotasData(notasInformativasService.getAll());
+          break;
+        case 'detenidos':
+          detenidosService.delete(id);
+          setDetenidosData(detenidosService.getAll());
+          break;
+        case 'vehiculos':
+          vehiculosService.delete(id);
+          setVehiculosData(vehiculosService.getAll());
+          break;
+        case 'incautaciones':
+          incautacionesService.delete(id);
+          setIncautacionesData(incautacionesService.getAll());
+          break;
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al eliminar');
+    }
+  };
+
+
+  const loading = dataLoading;
 
   if (loading) {
     return (
@@ -127,11 +192,11 @@ const OperationsPage: React.FC = () => {
     );
   }
 
-  if (error) {
+  if (dataError || error) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center text-red-600">
-          <p>Error al cargar los datos: {error}</p>
+          <p>Error al cargar los datos: {dataError || error}</p>
           <Link to="/" className="text-blue-600 hover:underline mt-2 inline-block">
             Volver al Dashboard
           </Link>
@@ -155,17 +220,12 @@ const OperationsPage: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold text-neutral-800 mb-2">
-                Operaciones Detalladas
+                {filterType ? getFilterDisplayName(filterType) : 'Operaciones Detalladas'}
               </h1>
               {filterType && (
-                <div className="flex items-center gap-2">
-                  <Chip 
-                    label={`Filtrado por: ${getFilterDisplayName(filterType)}`}
-                    color="primary"
-                    onDelete={clearFilter}
-                    deleteIcon={<ClearIcon />}
-                  />
-                </div>
+                <Typography color="text.secondary">
+                  Mostrando tabla específica para: {getFilterDisplayName(filterType)}
+                </Typography>
               )}
             </div>
             <Link
@@ -178,53 +238,75 @@ const OperationsPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Stats Card */}
-        <Card className="mb-6">
-          <CardContent className="py-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-6">
-                <div>
-                  <p className="text-sm text-neutral-600">Total de Operaciones</p>
-                  <p className="text-2xl font-bold text-neutral-800">
-                    {filteredAndSearchedCases.length.toLocaleString()}
-                  </p>
-                </div>
-                {filterType && (
-                  <div>
-                    <p className="text-sm text-neutral-600">Mostrando</p>
-                    <p className="text-lg font-semibold text-primary-600">
-                      {getFilterDisplayName(filterType)}
-                    </p>
-                  </div>
-                )}
-              </div>
-              <TextField
-                size="small"
-                placeholder="Buscar en operaciones..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <SearchIcon />
-                    </InputAdornment>
-                  ),
-                }}
-                className="w-64"
-              />
-            </div>
-          </CardContent>
-        </Card>
+        {/* Error Display */}
+        {error && (
+          <Alert severity="error" sx={{ mb: 3 }}>
+            {error}
+          </Alert>
+        )}
 
-        {/* Operations Table with Editing Capabilities */}
-        <EnvironmentalTable
-          cases={filteredAndSearchedCases}
-          onUpdateCase={updateCase}
-          onDeleteCase={deleteCase}
-          isEditable={true}
-          focusedField={filterType ? getFocusedField(filterType) : undefined}
-          metricType={filterType || undefined}
-        />
+        {/* Show appropriate table based on filter */}
+        {!filterType && (
+          <Card className="mb-6">
+            <CardContent className="py-4">
+              <Typography variant="h6" gutterBottom>
+                Selecciona una métrica desde el Dashboard
+              </Typography>
+              <Typography color="text.secondary">
+                Para ver y editar datos específicos, haz clic en una de las métricas en el dashboard principal.
+              </Typography>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Render specific table based on filter */}
+        {currentTableType === 'notas_informativas' && (
+          <GenericTable
+            tableType="notas_informativas"
+            data={notasData}
+            onUpdate={handleUpdate}
+            onDelete={handleDelete}
+            onCreate={handleCreate}
+            loading={loading}
+            title={getFilterDisplayName(filterType!)}
+          />
+        )}
+
+        {currentTableType === 'detenidos' && (
+          <GenericTable
+            tableType="detenidos"
+            data={detenidosData}
+            onUpdate={handleUpdate}
+            onDelete={handleDelete}
+            onCreate={handleCreate}
+            loading={loading}
+            title={getFilterDisplayName(filterType!)}
+          />
+        )}
+
+        {currentTableType === 'vehiculos' && (
+          <GenericTable
+            tableType="vehiculos"
+            data={vehiculosData}
+            onUpdate={handleUpdate}
+            onDelete={handleDelete}
+            onCreate={handleCreate}
+            loading={loading}
+            title={getFilterDisplayName(filterType!)}
+          />
+        )}
+
+        {currentTableType === 'incautaciones' && (
+          <GenericTable
+            tableType="incautaciones"
+            data={incautacionesData}
+            onUpdate={handleUpdate}
+            onDelete={handleDelete}
+            onCreate={handleCreate}
+            loading={loading}
+            title={getFilterDisplayName(filterType!)}
+          />
+        )}
 
       </div>
     </div>
