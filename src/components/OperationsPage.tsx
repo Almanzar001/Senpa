@@ -5,7 +5,8 @@ import {
   Card,
   CardContent,
   Breadcrumbs,
-  Alert
+  Alert,
+  Box
 } from '@mui/material';
 import { 
   ArrowBack as BackIcon
@@ -40,7 +41,7 @@ const OperationsPage: React.FC = () => {
     if (cases && cases.length > 0) {
       try {
         // Map EnvironmentalCase data to specific table formats
-        const mappedNotas = DataMapperService.mapToNotaInformativa(cases);
+        const mappedNotas = DataMapperService.mapToNotaInformativa(cases, filterType || undefined);
         const mappedDetenidos = DataMapperService.mapToDetenidos(cases);
         const mappedVehiculos = DataMapperService.mapToVehiculos(cases);
         const mappedIncautaciones = DataMapperService.mapToIncautaciones(cases);
@@ -97,9 +98,22 @@ const OperationsPage: React.FC = () => {
       vehiculos: 'Vehículos Detenidos',
       incautaciones: 'Incautaciones',
       notificados: 'Notificados',
-      procuraduria: 'Procuraduría'
+      procuraduria: 'Casos con Procuraduría (Sí)'
     };
     return names[type] || type;
+  };
+
+  const getFilterDescription = (type: string) => {
+    const descriptions: Record<string, string> = {
+      operativos: 'Casos donde el tipo de actividad incluye "operativo"',
+      patrullas: 'Casos donde el tipo de actividad incluye "patrulla"',
+      detenidos: 'Casos que registran personas detenidas',
+      vehiculos: 'Casos que registran vehículos detenidos',
+      incautaciones: 'Casos que registran incautaciones',
+      notificados: 'Casos con personas notificadas',
+      procuraduria: 'Casos donde el campo procuraduría es igual a Sí'
+    };
+    return descriptions[type] || '';
   };
 
   // Generic CRUD handlers
@@ -223,9 +237,14 @@ const OperationsPage: React.FC = () => {
                 {filterType ? getFilterDisplayName(filterType) : 'Operaciones Detalladas'}
               </h1>
               {filterType && (
-                <Typography color="text.secondary">
-                  Mostrando tabla específica para: {getFilterDisplayName(filterType)}
-                </Typography>
+                <Box>
+                  <Typography color="text.secondary">
+                    Mostrando tabla específica para: {getFilterDisplayName(filterType)}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {getFilterDescription(filterType)}
+                  </Typography>
+                </Box>
               )}
             </div>
             <Link

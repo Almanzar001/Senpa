@@ -2,9 +2,37 @@ import type { EnvironmentalCase } from './environmentalAnalytics';
 import type { NotaInformativa, Detenido, Vehiculo, Incautacion } from '../types/tableTypes';
 
 export class DataMapperService {
-  // Mapear EnvironmentalCase a NotaInformativa
-  static mapToNotaInformativa(cases: EnvironmentalCase[]): NotaInformativa[] {
-    return cases.map(envCase => ({
+  // Mapear EnvironmentalCase a NotaInformativa con filtro opcional
+  static mapToNotaInformativa(cases: EnvironmentalCase[], filterType?: string): NotaInformativa[] {
+    let filteredCases = cases;
+    
+    // Aplicar filtros específicos según el tipo de métrica
+    if (filterType) {
+      switch (filterType) {
+        case 'operativos':
+          filteredCases = cases.filter(c => 
+            c.tipoActividad && c.tipoActividad.toLowerCase().includes('operativo')
+          );
+          break;
+        case 'patrullas':
+          filteredCases = cases.filter(c => 
+            c.tipoActividad && c.tipoActividad.toLowerCase().includes('patrulla')
+          );
+          break;
+        case 'notificados':
+          filteredCases = cases.filter(c => 
+            c.notificados && c.notificados > 0
+          );
+          break;
+        case 'procuraduria':
+          filteredCases = cases.filter(c => 
+            c.procuraduria === true
+          );
+          break;
+      }
+    }
+    
+    return filteredCases.map(envCase => ({
       id: `nota_${envCase.numeroCaso}`,
       numeroCaso: envCase.numeroCaso,
       fecha: envCase.fecha,
