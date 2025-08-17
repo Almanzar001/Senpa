@@ -15,6 +15,7 @@ import {
   Clear as ClearIcon
 } from '@mui/icons-material';
 import { useData } from '../contexts/DataContext';
+import { type EnvironmentalCase } from '../services/environmentalAnalytics';
 import EnvironmentalTable from './EnvironmentalTable';
 
 const OperationsPage: React.FC = () => {
@@ -98,6 +99,20 @@ const OperationsPage: React.FC = () => {
       procuraduria: 'Procuraduría'
     };
     return names[type] || type;
+  };
+
+  // Mapear tipo de filtro a campo específico
+  const getFocusedField = (filterType: string) => {
+    const fieldMapping: Record<string, keyof EnvironmentalCase> = {
+      'detenidos': 'detenidos',
+      'vehiculos': 'vehiculosDetenidos',
+      'notificados': 'notificados',
+      'procuraduria': 'procuraduria',
+      'operativos': 'tipoActividad',
+      'patrullas': 'tipoActividad',
+      'incautaciones': 'incautaciones'
+    };
+    return fieldMapping[filterType];
   };
 
 
@@ -207,6 +222,8 @@ const OperationsPage: React.FC = () => {
           onUpdateCase={updateCase}
           onDeleteCase={deleteCase}
           isEditable={true}
+          focusedField={filterType ? getFocusedField(filterType) : undefined}
+          metricType={filterType || undefined}
         />
 
       </div>

@@ -47,13 +47,17 @@ interface EnvironmentalTableProps {
   onUpdateCase?: (updatedCase: EnvironmentalCase) => void;
   onDeleteCase?: (caseId: string) => void;
   isEditable?: boolean;
+  focusedField?: keyof EnvironmentalCase; // Campo específico a editar
+  metricType?: string; // Tipo de métrica para personalizar la edición
 }
 
 const EnvironmentalTable: React.FC<EnvironmentalTableProps> = ({ 
   cases, 
   onUpdateCase,
   onDeleteCase,
-  isEditable = false 
+  isEditable = false,
+  focusedField,
+  metricType
 }) => {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -262,7 +266,10 @@ const EnvironmentalTable: React.FC<EnvironmentalTableProps> = ({
     const isEditing = editingCase === envCase.numeroCaso;
     const value = isEditing ? (editedData[field] ?? envCase[field]) : envCase[field];
 
-    if (!isEditing) {
+    // Si hay un campo enfocado y este no es el campo enfocado, mostrar solo lectura
+    const isFieldEditable = !focusedField || field === focusedField;
+
+    if (!isEditing || !isFieldEditable) {
       return <span>{String(value)}</span>;
     }
 
@@ -313,7 +320,37 @@ const EnvironmentalTable: React.FC<EnvironmentalTableProps> = ({
         sx={{ minWidth: '120px' }}
       />
     );
-  }, [editingCase, editedData, handleFieldChange]);
+  }, [editingCase, editedData, handleFieldChange, focusedField]);
+
+  // Función para obtener nombre legible del campo
+  const getFieldDisplayName = useCallback((field: keyof EnvironmentalCase) => {
+    const fieldNames: Record<string, string> = {
+      detenidos: 'Detenidos',
+      vehiculosDetenidos: 'Vehículos Detenidos',
+      notificados: 'Notificados',
+      procuraduria: 'Procuraduría',
+      tipoActividad: 'Tipo de Actividad',
+      incautaciones: 'Incautaciones',
+      fecha: 'Fecha',
+      hora: 'Hora',
+      provincia: 'Provincia',
+      localidad: 'Localidad',
+      areaTemática: 'Área Temática'
+    };
+    return fieldNames[field as string] || String(field);
+  }, []);
+
+  // Función para determinar si una celda debe estar resaltada
+  const getCellStyle = useCallback((field: keyof EnvironmentalCase) => {
+    if (focusedField === field) {
+      return {
+        backgroundColor: '#fff3cd',
+        border: '2px solid #ffc107',
+        borderRadius: '4px'
+      };
+    }
+    return {};
+  }, [focusedField]);
 
   const getActivityChip = (activity: string) => {
     const isOperativo = activity.toLowerCase().includes('operativo');
@@ -377,6 +414,14 @@ const EnvironmentalTable: React.FC<EnvironmentalTableProps> = ({
             color="primary"
             variant="outlined"
           />
+          {focusedField && metricType && (
+            <Chip 
+              label={`Editando: ${getFieldDisplayName(focusedField)}`}
+              color="warning"
+              variant="filled"
+              size="small"
+            />
+          )}
         </div>
         
         <div className="flex items-center space-x-2">
@@ -472,7 +517,7 @@ const EnvironmentalTable: React.FC<EnvironmentalTableProps> = ({
                         getAreaChip(envCase.areaTemática)
                       }
                     </TableCell>
-                    <TableCell className="text-center">
+                    <TableCell className="text-center" sx={getCellStyle('detenidos')}>
                       {editingCase === envCase.numeroCaso ? 
                         renderEditableCell(envCase, 'detenidos', true) :
                         <Chip 
@@ -483,7 +528,7 @@ const EnvironmentalTable: React.FC<EnvironmentalTableProps> = ({
                         />
                       }
                     </TableCell>
-                    <TableCell className="text-center">
+                    <TableCell className="text-center" sx={getCellStyle('vehiculosDetenidos')}>
                       {editingCase === envCase.numeroCaso ?
                         renderEditableCell(envCase, 'vehiculosDetenidos', true) :
                         <Chip 
