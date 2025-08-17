@@ -1,25 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  TablePagination,
-  Paper,
   TextField,
   InputAdornment,
   Chip,
-  Button,
-  IconButton,
-  Menu,
-  MenuItem,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
   Typography,
   Card,
   CardContent,
@@ -27,24 +11,16 @@ import {
 } from '@mui/material';
 import { 
   Search as SearchIcon,
-  Download as DownloadIcon,
-  Visibility as ViewIcon,
   ArrowBack as BackIcon,
   Clear as ClearIcon
 } from '@mui/icons-material';
 import { useData } from '../contexts/DataContext';
-import { type EnvironmentalCase } from '../services/environmentalAnalytics';
+import EnvironmentalTable from './EnvironmentalTable';
 
 const OperationsPage: React.FC = () => {
-  const { filteredCases, loading, error } = useData();
+  const { filteredCases, loading, error, updateCase, deleteCase } = useData();
   const [searchParams, setSearchParams] = useSearchParams();
-  
-  const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(25);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCase, setSelectedCase] = useState<EnvironmentalCase | null>(null);
-  const [detailDialogOpen, setDetailDialogOpen] = useState(false);
-  const [exportMenuAnchor, setExportMenuAnchor] = useState<null | HTMLElement>(null);
 
   // Get filter from URL params
   const filterType = searchParams.get('filter');
@@ -107,20 +83,6 @@ const OperationsPage: React.FC = () => {
     return filtered;
   }, [filteredCases, searchTerm, filterType, filterValue]);
 
-  const handleChangePage = (_event: unknown, newPage: number) => {
-    setPage(newPage);
-  };
-
-  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setRowsPerPage(parseInt(event.target.value, 10));
-    setPage(0);
-  };
-
-  const handleViewCase = (caso: EnvironmentalCase) => {
-    setSelectedCase(caso);
-    setDetailDialogOpen(true);
-  };
-
   const clearFilter = () => {
     setSearchParams({});
   };
@@ -138,46 +100,6 @@ const OperationsPage: React.FC = () => {
     return names[type] || type;
   };
 
-  const exportToCSV = () => {
-    const headers = [
-      'Número de Caso',
-      'Fecha',
-      'Hora',
-      'Tipo de Actividad',
-      'Localidad',
-      'Detenidos',
-      'Vehículos Detenidos',
-      'Incautaciones',
-      'Observaciones'
-    ];
-    
-    const csvContent = [
-      headers.join(','),
-      ...filteredAndSearchedCases
-        .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-        .map(caso => [
-          caso.numeroCaso || '',
-          caso.fecha || '',
-          caso.hora || '',
-          caso.tipoActividad || '',
-          caso.localidad || '',
-          caso.detenidos || 0,
-          caso.vehiculosDetenidos || 0,
-          caso.incautaciones?.join('; ') || '',
-          (caso.observaciones || '').replace(/,/g, ';')
-        ].join(','))
-    ].join('\n');
-    
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', `operaciones_${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    setExportMenuAnchor(null);
-  };
 
   if (loading) {
     return (
@@ -261,311 +183,32 @@ const OperationsPage: React.FC = () => {
                   </div>
                 )}
               </div>
-              <div className="flex items-center gap-2">
-                <TextField
-                  size="small"
-                  placeholder="Buscar en operaciones..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <SearchIcon />
-                      </InputAdornment>
-                    ),
-                  }}
-                  className="w-64"
-                />
-                <Button
-                  variant="outlined"
-                  startIcon={<DownloadIcon />}
-                  onClick={(e) => setExportMenuAnchor(e.currentTarget)}
-                >
-                  Exportar
-                </Button>
-              </div>
+              <TextField
+                size="small"
+                placeholder="Buscar en operaciones..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon />
+                    </InputAdornment>
+                  ),
+                }}
+                className="w-64"
+              />
             </div>
           </CardContent>
         </Card>
 
-        {/* Operations Table */}
-        <Paper className="shadow-lg">
-          <TableContainer>
-            <Table>
-              <TableHead>
-                <TableRow className="bg-neutral-100">
-                  <TableCell className="font-semibold">Número de Caso</TableCell>
-                  <TableCell className="font-semibold">Fecha</TableCell>
-                  <TableCell className="font-semibold">Hora</TableCell>
-                  <TableCell className="font-semibold">Tipo</TableCell>
-                  <TableCell className="font-semibold">Localidad</TableCell>
-                  <TableCell className="font-semibold text-center">Detenidos</TableCell>
-                  <TableCell className="font-semibold text-center">Vehículos</TableCell>
-                  <TableCell className="font-semibold text-center">Incautaciones</TableCell>
-                  <TableCell className="font-semibold text-center">Acciones</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {filteredAndSearchedCases
-                  .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                  .map((caso, index) => (
-                    <TableRow 
-                      key={`${caso.numeroCaso}-${index}`} 
-                      hover
-                      className="hover:bg-neutral-50"
-                    >
-                      <TableCell className="font-medium">
-                        {caso.numeroCaso || `OP-${index + 1}`}
-                      </TableCell>
-                      <TableCell>{caso.fecha || 'N/A'}</TableCell>
-                      <TableCell>{caso.hora || 'N/A'}</TableCell>
-                      <TableCell>
-                        <Chip 
-                          label={caso.tipoActividad || 'Sin especificar'} 
-                          size="small"
-                          color={caso.tipoActividad?.toLowerCase().includes('operativo') ? 'primary' : 'default'}
-                        />
-                      </TableCell>
-                      <TableCell>{caso.localidad || 'N/A'}</TableCell>
-                      <TableCell className="text-center">
-                        {caso.detenidos > 0 ? (
-                          <Chip label={caso.detenidos} color="error" size="small" />
-                        ) : (
-                          '0'
-                        )}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        {caso.vehiculosDetenidos > 0 ? (
-                          <Chip label={caso.vehiculosDetenidos} color="warning" size="small" />
-                        ) : (
-                          '0'
-                        )}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        {caso.incautaciones && caso.incautaciones.length > 0 ? (
-                          <Chip label={caso.incautaciones.length} color="info" size="small" />
-                        ) : (
-                          '0'
-                        )}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <IconButton
-                          size="small"
-                          onClick={() => handleViewCase(caso)}
-                          className="text-blue-600 hover:bg-blue-50"
-                        >
-                          <ViewIcon />
-                        </IconButton>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-          
-          <TablePagination
-            rowsPerPageOptions={[10, 25, 50, 100]}
-            component="div"
-            count={filteredAndSearchedCases.length}
-            rowsPerPage={rowsPerPage}
-            page={page}
-            onPageChange={handleChangePage}
-            onRowsPerPageChange={handleChangeRowsPerPage}
-            labelRowsPerPage="Filas por página:"
-            labelDisplayedRows={({ from, to, count }) => 
-              `${from}-${to} de ${count !== -1 ? count : `más de ${to}`}`
-            }
-          />
-        </Paper>
+        {/* Operations Table with Editing Capabilities */}
+        <EnvironmentalTable
+          cases={filteredAndSearchedCases}
+          onUpdateCase={updateCase}
+          onDeleteCase={deleteCase}
+          isEditable={true}
+        />
 
-        {/* Export Menu */}
-        <Menu
-          anchorEl={exportMenuAnchor}
-          open={Boolean(exportMenuAnchor)}
-          onClose={() => setExportMenuAnchor(null)}
-        >
-          <MenuItem onClick={exportToCSV}>
-            <DownloadIcon className="mr-2" />
-            Exportar como CSV
-          </MenuItem>
-        </Menu>
-
-        {/* Case Detail Dialog */}
-        <Dialog 
-          open={detailDialogOpen} 
-          onClose={() => setDetailDialogOpen(false)}
-          maxWidth="md"
-          fullWidth
-        >
-          <DialogTitle className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
-            Detalles del Caso: {selectedCase?.numeroCaso || 'Sin número'}
-          </DialogTitle>
-          <DialogContent className="p-6">
-            {selectedCase && (
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Typography variant="subtitle2" className="font-semibold text-gray-600">
-                      Fecha y Hora
-                    </Typography>
-                    <Typography variant="body1">
-                      {selectedCase.fecha || 'N/A'} {selectedCase.hora || ''}
-                    </Typography>
-                  </div>
-                  <div>
-                    <Typography variant="subtitle2" className="font-semibold text-gray-600">
-                      Ubicación
-                    </Typography>
-                    <Typography variant="body1">
-                      {selectedCase.localidad || 'No especificada'}{selectedCase.provincia ? `, ${selectedCase.provincia}` : ''}
-                    </Typography>
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Typography variant="subtitle2" className="font-semibold text-gray-600">
-                      Tipo de Actividad
-                    </Typography>
-                    <Chip 
-                      label={selectedCase.tipoActividad || 'Sin especificar'} 
-                      color={selectedCase.tipoActividad?.toLowerCase().includes('operativo') ? 'primary' : 'default'}
-                      variant="outlined"
-                    />
-                  </div>
-                  <div>
-                    <Typography variant="subtitle2" className="font-semibold text-gray-600">
-                      Área Temática
-                    </Typography>
-                    <Chip 
-                      label={selectedCase.areaTemática || 'No especificada'} 
-                      color="info"
-                      variant="outlined"
-                    />
-                  </div>
-                </div>
-
-                {/* Metrics Section */}
-                <div className="grid grid-cols-3 gap-4 bg-neutral-50 p-4 rounded-lg">
-                  <div className="text-center">
-                    <Typography variant="h6" className="font-bold text-red-600">
-                      {selectedCase.detenidos || 0}
-                    </Typography>
-                    <Typography variant="caption" className="text-gray-600">
-                      Detenidos
-                    </Typography>
-                  </div>
-                  <div className="text-center">
-                    <Typography variant="h6" className="font-bold text-orange-600">
-                      {selectedCase.vehiculosDetenidos || 0}
-                    </Typography>
-                    <Typography variant="caption" className="text-gray-600">
-                      Vehículos
-                    </Typography>
-                  </div>
-                  <div className="text-center">
-                    <Typography variant="h6" className="font-bold text-blue-600">
-                      {selectedCase.notificados || 0}
-                    </Typography>
-                    <Typography variant="caption" className="text-gray-600">
-                      Notificados
-                    </Typography>
-                  </div>
-                </div>
-
-                {/* Detailed Information */}
-                {selectedCase.detenidosInfo && selectedCase.detenidosInfo.length > 0 && (
-                  <div>
-                    <Typography variant="subtitle2" className="font-semibold text-gray-600 mb-2">
-                      Detenidos ({selectedCase.detenidos})
-                    </Typography>
-                    <div className="space-y-1">
-                      {selectedCase.detenidosInfo.map((detenido: any, index: number) => (
-                        <div key={index} className="flex justify-between bg-red-50 p-2 rounded">
-                          <span>{detenido.nombre || `Detenido ${index + 1}`}</span>
-                          <Chip label={detenido.nacionalidad || 'N/A'} size="small" />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {selectedCase.vehiculosInfo && selectedCase.vehiculosInfo.length > 0 && (
-                  <div>
-                    <Typography variant="subtitle2" className="font-semibold text-gray-600 mb-2">
-                      Vehículos ({selectedCase.vehiculosDetenidos})
-                    </Typography>
-                    <div className="space-y-1">
-                      {selectedCase.vehiculosInfo.map((vehiculo: any, index: number) => (
-                        <div key={index} className="flex justify-between bg-orange-50 p-2 rounded">
-                          <span>{vehiculo.tipo || 'Vehículo'}</span>
-                          <span className="text-gray-600">{vehiculo.placa || 'Sin placa'}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {selectedCase.incautaciones && selectedCase.incautaciones.length > 0 && (
-                  <div>
-                    <Typography variant="subtitle2" className="font-semibold text-gray-600 mb-2">
-                      Incautaciones ({selectedCase.incautaciones.length})
-                    </Typography>
-                    <div className="flex flex-wrap gap-1">
-                      {selectedCase.incautaciones.map((incautacion, index) => (
-                        <Chip
-                          key={index}
-                          label={incautacion}
-                          size="small"
-                          color="success"
-                          variant="outlined"
-                        />
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {selectedCase.observaciones && (
-                  <div>
-                    <Typography variant="subtitle2" className="font-semibold text-gray-600 mb-2">
-                      Observaciones
-                    </Typography>
-                    <Typography variant="body1" className="bg-blue-50 p-3 rounded-lg">
-                      {selectedCase.observaciones}
-                    </Typography>
-                  </div>
-                )}
-
-                {selectedCase.resultado && (
-                  <div>
-                    <Typography variant="subtitle2" className="font-semibold text-gray-600 mb-2">
-                      Resultado
-                    </Typography>
-                    <Typography variant="body1" className="bg-green-50 p-3 rounded-lg">
-                      {selectedCase.resultado}
-                    </Typography>
-                  </div>
-                )}
-
-                {selectedCase.coordenadas && (
-                  <div>
-                    <Typography variant="subtitle2" className="font-semibold text-gray-600">
-                      Coordenadas
-                    </Typography>
-                    <Typography variant="body1" className="font-mono text-sm bg-gray-100 p-2 rounded">
-                      Lat: {selectedCase.coordenadas.lat}, Lng: {selectedCase.coordenadas.lng}
-                    </Typography>
-                  </div>
-                )}
-              </div>
-            )}
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={() => setDetailDialogOpen(false)} color="primary">
-              Cerrar
-            </Button>
-          </DialogActions>
-        </Dialog>
       </div>
     </div>
   );
