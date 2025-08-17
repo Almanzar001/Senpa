@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   Table,
   TableBody,
@@ -21,28 +21,51 @@ import {
   DialogActions,
   Typography,
   Card,
-  CardContent
+  CardContent,
+  Select,
+  FormControl,
+  MenuItem as SelectMenuItem,
+  Tooltip,
+  Snackbar,
+  Alert
 } from '@mui/material';
 import { 
   Search as SearchIcon,
   Download as DownloadIcon,
   Visibility as ViewIcon,
-  TableChart as TableIcon
+  TableChart as TableIcon,
+  Edit as EditIcon,
+  Save as SaveIcon,
+  Cancel as CancelIcon,
+  Delete as DeleteIcon
 } from '@mui/icons-material';
 import { type EnvironmentalCase, type EnvironmentalFilters } from '../services/environmentalAnalytics';
 
 interface EnvironmentalTableProps {
   cases: EnvironmentalCase[];
   filters?: EnvironmentalFilters;
+  onUpdateCase?: (updatedCase: EnvironmentalCase) => void;
+  onDeleteCase?: (caseId: string) => void;
+  isEditable?: boolean;
 }
 
-const EnvironmentalTable: React.FC<EnvironmentalTableProps> = ({ cases }) => {
+const EnvironmentalTable: React.FC<EnvironmentalTableProps> = ({ 
+  cases, 
+  onUpdateCase,
+  onDeleteCase,
+  isEditable = false 
+}) => {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCase, setSelectedCase] = useState<EnvironmentalCase | null>(null);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [exportMenuAnchor, setExportMenuAnchor] = useState<null | HTMLElement>(null);
+  const [editingCase, setEditingCase] = useState<string | null>(null);
+  const [editedData, setEditedData] = useState<Partial<EnvironmentalCase>>({});
+  const [snackbar, setSnackbar] = useState<{open: boolean, message: string, severity: 'success' | 'error'}>(
+    {open: false, message: '', severity: 'success'}
+  );
 
   const filteredCases = useMemo(() => {
     let filtered = cases;
@@ -170,6 +193,127 @@ const EnvironmentalTable: React.FC<EnvironmentalTableProps> = ({ cases }) => {
     
     handleExportMenuClose();
   };
+
+  // Editing functions
+  const handleStartEdit = useCallback((envCase: EnvironmentalCase) => {
+    setEditingCase(envCase.numeroCaso);
+    setEditedData({ ...envCase });
+  }, []);
+
+  const handleCancelEdit = useCallback(() => {
+    setEditingCase(null);
+    setEditedData({});
+  }, []);
+
+  const handleSaveEdit = useCallback(async () => {
+    if (!editingCase || !editedData.numeroCaso) return;
+    
+    try {
+      const updatedCase = { ...editedData } as EnvironmentalCase;
+      
+      // Call parent update function if provided
+      if (onUpdateCase) {
+        await onUpdateCase(updatedCase);
+      }
+      
+      setSnackbar({
+        open: true,
+        message: 'Caso actualizado exitosamente',
+        severity: 'success'
+      });
+      
+      setEditingCase(null);
+      setEditedData({});
+    } catch (error) {
+      setSnackbar({
+        open: true,
+        message: 'Error al actualizar el caso',
+        severity: 'error'
+      });
+    }
+  }, [editingCase, editedData, onUpdateCase]);
+
+  const handleDeleteCase = useCallback(async (caseId: string) => {
+    if (!onDeleteCase) return;
+    
+    if (window.confirm('¿Estás seguro de que quieres eliminar este caso?')) {
+      try {
+        await onDeleteCase(caseId);
+        setSnackbar({
+          open: true,
+          message: 'Caso eliminado exitosamente',
+          severity: 'success'
+        });
+      } catch (error) {
+        setSnackbar({
+          open: true,
+          message: 'Error al eliminar el caso',
+          severity: 'error'
+        });
+      }
+    }
+  }, [onDeleteCase]);
+
+  const handleFieldChange = useCallback((field: keyof EnvironmentalCase, value: any) => {
+    setEditedData(prev => ({ ...prev, [field]: value }));
+  }, []);
+
+  const renderEditableCell = useCallback((envCase: EnvironmentalCase, field: keyof EnvironmentalCase, isNumber = false) => {
+    const isEditing = editingCase === envCase.numeroCaso;
+    const value = isEditing ? (editedData[field] ?? envCase[field]) : envCase[field];
+
+    if (!isEditing) {
+      return <span>{String(value)}</span>;
+    }
+
+    if (field === 'tipoActividad') {
+      return (
+        <FormControl size="small" fullWidth>
+          <Select
+            value={value || ''}
+            onChange={(e) => handleFieldChange(field, e.target.value)}
+            displayEmpty
+          >
+            <SelectMenuItem value="">Seleccionar</SelectMenuItem>
+            <SelectMenuItem value="Operativo">Operativo</SelectMenuItem>
+            <SelectMenuItem value="Patrulla">Patrulla</SelectMenuItem>
+            <SelectMenuItem value="Inspección">Inspección</SelectMenuItem>
+            <SelectMenuItem value="Seguimiento">Seguimiento</SelectMenuItem>
+          </Select>
+        </FormControl>
+      );
+    }
+
+    if (field === 'areaTemática') {
+      return (
+        <FormControl size="small" fullWidth>
+          <Select
+            value={value || ''}
+            onChange={(e) => handleFieldChange(field, e.target.value)}
+            displayEmpty
+          >
+            <SelectMenuItem value="">Seleccionar</SelectMenuItem>
+            <SelectMenuItem value="Suelos y Aguas">Suelos y Aguas</SelectMenuItem>
+            <SelectMenuItem value="Recursos Forestales">Recursos Forestales</SelectMenuItem>
+            <SelectMenuItem value="Areas Protegidas">Areas Protegidas</SelectMenuItem>
+            <SelectMenuItem value="Gestión Ambiental">Gestión Ambiental</SelectMenuItem>
+            <SelectMenuItem value="Costeros y Marinos">Costeros y Marinos</SelectMenuItem>
+          </Select>
+        </FormControl>
+      );
+    }
+
+    return (
+      <TextField
+        size="small"
+        fullWidth
+        type={isNumber ? 'number' : 'text'}
+        value={value || ''}
+        onChange={(e) => handleFieldChange(field, isNumber ? Number(e.target.value) : e.target.value)}
+        sx={{ minWidth: '120px' }}
+      />
+    );
+  }, [editingCase, editedData, handleFieldChange]);
 
   const getActivityChip = (activity: string) => {
     const isOperativo = activity.toLowerCase().includes('operativo');
@@ -312,31 +456,43 @@ const EnvironmentalTable: React.FC<EnvironmentalTableProps> = ({ cases }) => {
                     <TableCell className="font-mono text-sm font-semibold">
                       {envCase.numeroCaso}
                     </TableCell>
-                    <TableCell>{envCase.fecha}</TableCell>
-                    <TableCell>{envCase.hora}</TableCell>
-                    <TableCell>{envCase.provincia}</TableCell>
-                    <TableCell>{envCase.localidad}</TableCell>
+                    <TableCell>{renderEditableCell(envCase, 'fecha')}</TableCell>
+                    <TableCell>{renderEditableCell(envCase, 'hora')}</TableCell>
+                    <TableCell>{renderEditableCell(envCase, 'provincia')}</TableCell>
+                    <TableCell>{renderEditableCell(envCase, 'localidad')}</TableCell>
                     <TableCell>
-                      {getActivityChip(envCase.tipoActividad)}
+                      {editingCase === envCase.numeroCaso ? 
+                        renderEditableCell(envCase, 'tipoActividad') :
+                        getActivityChip(envCase.tipoActividad)
+                      }
                     </TableCell>
                     <TableCell>
-                      {getAreaChip(envCase.areaTemática)}
+                      {editingCase === envCase.numeroCaso ?
+                        renderEditableCell(envCase, 'areaTemática') :
+                        getAreaChip(envCase.areaTemática)
+                      }
                     </TableCell>
                     <TableCell className="text-center">
-                      <Chip 
-                        label={envCase.detenidos} 
-                        size="small" 
-                        color={envCase.detenidos > 0 ? "error" : "default"}
-                        variant="filled"
-                      />
+                      {editingCase === envCase.numeroCaso ? 
+                        renderEditableCell(envCase, 'detenidos', true) :
+                        <Chip 
+                          label={envCase.detenidos} 
+                          size="small" 
+                          color={envCase.detenidos > 0 ? "error" : "default"}
+                          variant="filled"
+                        />
+                      }
                     </TableCell>
                     <TableCell className="text-center">
-                      <Chip 
-                        label={envCase.vehiculosDetenidos} 
-                        size="small" 
-                        color={envCase.vehiculosDetenidos > 0 ? "warning" : "default"}
-                        variant="filled"
-                      />
+                      {editingCase === envCase.numeroCaso ?
+                        renderEditableCell(envCase, 'vehiculosDetenidos', true) :
+                        <Chip 
+                          label={envCase.vehiculosDetenidos} 
+                          size="small" 
+                          color={envCase.vehiculosDetenidos > 0 ? "warning" : "default"}
+                          variant="filled"
+                        />
+                      }
                     </TableCell>
                     <TableCell>
                       <div className="max-w-32">
@@ -353,13 +509,66 @@ const EnvironmentalTable: React.FC<EnvironmentalTableProps> = ({ cases }) => {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <IconButton
-                        size="small"
-                        onClick={() => handleViewCase(envCase)}
-                        className="text-blue-600 hover:bg-blue-50"
-                      >
-                        <ViewIcon fontSize="small" />
-                      </IconButton>
+                      <div className="flex items-center space-x-1">
+                        {editingCase === envCase.numeroCaso ? (
+                          <>
+                            <Tooltip title="Guardar cambios">
+                              <IconButton
+                                size="small"
+                                onClick={handleSaveEdit}
+                                className="text-green-600 hover:bg-green-50"
+                              >
+                                <SaveIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title="Cancelar edición">
+                              <IconButton
+                                size="small"
+                                onClick={handleCancelEdit}
+                                className="text-gray-600 hover:bg-gray-50"
+                              >
+                                <CancelIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                          </>
+                        ) : (
+                          <>
+                            <Tooltip title="Ver detalles">
+                              <IconButton
+                                size="small"
+                                onClick={() => handleViewCase(envCase)}
+                                className="text-blue-600 hover:bg-blue-50"
+                              >
+                                <ViewIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                            {isEditable && (
+                              <>
+                                <Tooltip title="Editar caso">
+                                  <IconButton
+                                    size="small"
+                                    onClick={() => handleStartEdit(envCase)}
+                                    className="text-orange-600 hover:bg-orange-50"
+                                  >
+                                    <EditIcon fontSize="small" />
+                                  </IconButton>
+                                </Tooltip>
+                                {onDeleteCase && (
+                                  <Tooltip title="Eliminar caso">
+                                    <IconButton
+                                      size="small"
+                                      onClick={() => handleDeleteCase(envCase.numeroCaso)}
+                                      className="text-red-600 hover:bg-red-50"
+                                    >
+                                      <DeleteIcon fontSize="small" />
+                                    </IconButton>
+                                  </Tooltip>
+                                )}
+                              </>
+                            )}
+                          </>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -515,6 +724,22 @@ const EnvironmentalTable: React.FC<EnvironmentalTableProps> = ({ cases }) => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Snackbar for notifications */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          severity={snackbar.severity}
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </div>
   );
 };

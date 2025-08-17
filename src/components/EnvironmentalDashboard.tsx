@@ -17,7 +17,9 @@ const EnvironmentalDashboard: React.FC = () => {
     error,
     filters,
     setFilters,
-    fetchData
+    fetchData,
+    updateCase,
+    deleteCase
   } = useData();
 
   const [activeTab, setActiveTab] = useState(0);
@@ -339,7 +341,13 @@ const EnvironmentalDashboard: React.FC = () => {
               )}
               {activeTab === 1 && (
                 <div className="animate-fade-in">
-                  <MemoizedEnvironmentalTable cases={filteredCases} filters={filters} />
+                  <MemoizedEnvironmentalTable 
+                    cases={filteredCases} 
+                    filters={filters} 
+                    onUpdateCase={updateCase}
+                    onDeleteCase={deleteCase}
+                    isEditable={true}
+                  />
                 </div>
               )}
               {activeTab === 2 && (

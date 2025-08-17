@@ -13,6 +13,9 @@ interface DataContextState {
   fetchData: () => Promise<void>;
   sheetsCount: number;
   rawCases: EnvironmentalCase[]; // Exponemos los casos sin procesar
+  updateCase: (updatedCase: EnvironmentalCase) => Promise<void>;
+  deleteCase: (caseId: string) => Promise<void>;
+  addCase: (newCase: EnvironmentalCase) => Promise<void>;
 }
 
 const DataContext = createContext<DataContextState | undefined>(undefined);
@@ -86,6 +89,65 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return analyticsService.applyFilters(cases, filters);
   }, [cases, filters, analyticsService]);
 
+  // CRUD operations
+  const updateCase = useCallback(async (updatedCase: EnvironmentalCase) => {
+    try {
+      const validationErrors = analyticsService.validateCase(updatedCase);
+      if (validationErrors.length > 0) {
+        throw new Error(`Errores de validación: ${validationErrors.join(', ')}`);
+      }
+
+      // Update in analytics service
+      analyticsService.updateCase(updatedCase);
+      
+      // Force re-render by updating the sheets state
+      // In a real app, you'd also update the backend here
+      setSheets(prevSheets => [...prevSheets]);
+      
+    } catch (err: any) {
+      console.error('Error updating case:', err);
+      throw err;
+    }
+  }, [analyticsService]);
+
+  const deleteCase = useCallback(async (caseId: string) => {
+    try {
+      // Delete from analytics service
+      const deleted = analyticsService.deleteCase(caseId);
+      if (!deleted) {
+        throw new Error('Caso no encontrado');
+      }
+      
+      // Force re-render by updating the sheets state
+      // In a real app, you'd also delete from the backend here
+      setSheets(prevSheets => [...prevSheets]);
+      
+    } catch (err: any) {
+      console.error('Error deleting case:', err);
+      throw err;
+    }
+  }, [analyticsService]);
+
+  const addCase = useCallback(async (newCase: EnvironmentalCase) => {
+    try {
+      const validationErrors = analyticsService.validateCase(newCase);
+      if (validationErrors.length > 0) {
+        throw new Error(`Errores de validación: ${validationErrors.join(', ')}`);
+      }
+
+      // Add to analytics service
+      analyticsService.addCase(newCase);
+      
+      // Force re-render by updating the sheets state
+      // In a real app, you'd also save to the backend here
+      setSheets(prevSheets => [...prevSheets]);
+      
+    } catch (err: any) {
+      console.error('Error adding case:', err);
+      throw err;
+    }
+  }, [analyticsService]);
+
   const value = {
     cases,
     filteredCases,
@@ -95,7 +157,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setFilters,
     fetchData,
     sheetsCount: sheets.length,
-    rawCases: cases // Pasamos los casos crudos
+    rawCases: cases, // Pasamos los casos crudos
+    updateCase,
+    deleteCase,
+    addCase
   };
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;

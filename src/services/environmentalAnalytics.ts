@@ -796,6 +796,112 @@ class EnvironmentalAnalyticsService {
       }))
       .sort((a, b) => b.cantidad - a.cantidad);
   }
+
+  // CRUD Operations for cases
+  updateCase(updatedCase: EnvironmentalCase): EnvironmentalCase {
+    // Validate required fields
+    if (!updatedCase.numeroCaso) {
+      throw new Error('Número de caso es requerido');
+    }
+
+    // Update the case in the internal map
+    this.cases.set(updatedCase.numeroCaso, updatedCase);
+    
+    return updatedCase;
+  }
+
+  deleteCase(caseId: string): boolean {
+    if (!caseId) {
+      throw new Error('ID de caso es requerido');
+    }
+
+    return this.cases.delete(caseId);
+  }
+
+  addCase(newCase: EnvironmentalCase): EnvironmentalCase {
+    // Validate required fields
+    if (!newCase.numeroCaso) {
+      throw new Error('Número de caso es requerido');
+    }
+
+    if (this.cases.has(newCase.numeroCaso)) {
+      throw new Error('Ya existe un caso con este número');
+    }
+
+    // Set default values for missing fields
+    const caseWithDefaults: EnvironmentalCase = {
+      ...newCase,
+      numeroCaso: newCase.numeroCaso,
+      fecha: newCase.fecha || '',
+      hora: newCase.hora || '',
+      provincia: newCase.provincia || '',
+      localidad: newCase.localidad || '',
+      region: newCase.region || '',
+      tipoActividad: newCase.tipoActividad || '',
+      areaTemática: newCase.areaTemática || '',
+      detenidos: newCase.detenidos || 0,
+      vehiculosDetenidos: newCase.vehiculosDetenidos || 0,
+      incautaciones: newCase.incautaciones || [],
+      notificados: newCase.notificados || 0,
+      procuraduria: newCase.procuraduria || false
+    };
+
+    this.cases.set(newCase.numeroCaso, caseWithDefaults);
+    return caseWithDefaults;
+  }
+
+  // Validation helpers
+  validateCase(envCase: Partial<EnvironmentalCase>): string[] {
+    const errors: string[] = [];
+
+    if (!envCase.numeroCaso || envCase.numeroCaso.trim() === '') {
+      errors.push('Número de caso es requerido');
+    }
+
+    if (envCase.fecha && !this.isValidDate(envCase.fecha)) {
+      errors.push('Formato de fecha inválido');
+    }
+
+    if (envCase.detenidos !== undefined && envCase.detenidos < 0) {
+      errors.push('Número de detenidos no puede ser negativo');
+    }
+
+    if (envCase.vehiculosDetenidos !== undefined && envCase.vehiculosDetenidos < 0) {
+      errors.push('Número de vehículos no puede ser negativo');
+    }
+
+    if (envCase.notificados !== undefined && envCase.notificados < 0) {
+      errors.push('Número de notificados no puede ser negativo');
+    }
+
+    return errors;
+  }
+
+  private isValidDate(dateString: string): boolean {
+    // Check for common date formats
+    const dateFormats = [
+      /^\d{4}-\d{1,2}-\d{1,2}$/,  // YYYY-MM-DD
+      /^\d{1,2}\/\d{1,2}\/\d{4}$/,  // DD/MM/YYYY or MM/DD/YYYY
+      /^\d{1,2}-\d{1,2}-\d{4}$/,   // DD-MM-YYYY
+    ];
+
+    if (!dateFormats.some(format => format.test(dateString))) {
+      return false;
+    }
+
+    const date = new Date(dateString);
+    return !isNaN(date.getTime());
+  }
+
+  // Get all cases as array (useful for external access)
+  getAllCases(): EnvironmentalCase[] {
+    return Array.from(this.cases.values());
+  }
+
+  // Get case by ID
+  getCaseById(caseId: string): EnvironmentalCase | undefined {
+    return this.cases.get(caseId);
+  }
 }
 
 export default EnvironmentalAnalyticsService;
