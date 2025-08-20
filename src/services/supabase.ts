@@ -18,6 +18,15 @@ class SupabaseService {
   
   async getTableData(tableName: string): Promise<SheetData> {
     try {
+      // Verificar que el cliente Supabase esté disponible
+      if (!supabase) {
+        console.error('❌ Cliente Supabase no disponible');
+        return {
+          name: tableName,
+          data: []
+        };
+      }
+
       const { data, error } = await supabase
         .from(tableName)
         .select('*');
@@ -56,6 +65,12 @@ class SupabaseService {
 
   async getAllTables(): Promise<string[]> {
     try {
+      // Verificar que el cliente Supabase esté disponible
+      if (!supabase) {
+        console.error('❌ Cliente Supabase no disponible');
+        return ['notas_informativas', 'detenidos', 'incautaciones', 'vehiculos'];
+      }
+
       // Probar conexión con una tabla conocida
       const { error } = await supabase.from('detenidos').select('id').limit(1);
       

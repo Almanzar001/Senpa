@@ -2,9 +2,9 @@ import { createClient } from '@supabase/supabase-js';
 
 // Configuración del Dashboard SENPA
 export const CONFIG = {
-  // Supabase Configuration - FORZANDO dominio público
+  // Supabase Configuration - usando variables de entorno seguras
   SUPABASE_URL: import.meta.env.VITE_SUPABASE_URL || 'http://154.38.164.2:8003',
-  SUPABASE_ANON_KEY: import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyAgCiAgICAicm9sZSI6ICJhbm9uIiwKICAgICJpc3MiOiAic3VwYWJhc2UtZGVtbyIsCiAgICAiaWF0IjogMTY0MTc2OTIwMCwKICAgICJleHAiOiAxNzk5NTM1NjAwCn0.dc_X5iR_VP_qT0zsiyj_I_OZ2T9FtRU2BBNWN8Bu4GE',
+  SUPABASE_ANON_KEY: import.meta.env.VITE_SUPABASE_ANON_KEY || 'demo-key-for-development',
   
   // Lista de tablas de Supabase
   SUPABASE_TABLES: ['notas_informativas', 'detenidos', 'incautaciones', 'vehiculos'],
@@ -29,8 +29,45 @@ export const CONFIG = {
 
 // Función para validar la configuración
 export const isConfigValid = (): boolean => {
-  return CONFIG.SUPABASE_URL.length > 0 && 
-         CONFIG.SUPABASE_ANON_KEY.length > 0;
+  const url = CONFIG.SUPABASE_URL;
+  const key = CONFIG.SUPABASE_ANON_KEY;
+  
+  // Validar que no sean valores por defecto o vacíos
+  return url.length > 0 && 
+         key.length > 0 && 
+         key !== 'demo-key-for-development' &&
+         (url.startsWith('http://') || url.startsWith('https://'));
+};
+
+// Función para crear cliente Supabase de manera segura
+export const createSupabaseClient = () => {
+  const url = CONFIG.SUPABASE_URL;
+  const key = CONFIG.SUPABASE_ANON_KEY;
+  
+  // Si la configuración no es válida, crear cliente mock
+  if (!isConfigValid()) {
+    console.warn('⚠️ Configuración de Supabase no válida, usando cliente mock');
+    return null;
+  }
+  
+  try {
+    return createClient(url, key, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true
+      },
+      global: {
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        }
+      }
+    });
+  } catch (error) {
+    console.error('❌ Error creando cliente Supabase:', error);
+    return null;
+  }
 };
 
 // Función para obtener la fecha actual en formato español
@@ -43,5 +80,5 @@ export const getCurrentDateString = (): string => {
   });
 };
 
-// Cliente de Supabase simplificado para producción
-export const supabase = createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
+// Cliente de Supabase seguro
+export const supabase = createSupabaseClient();
