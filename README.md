@@ -1,16 +1,17 @@
-# Dashboard Senpa 📊
+# 🚔 Dashboard Operativo SENPA
 
-Un dashboard moderno, espectacular y sofisticado que conecta con Google Sheets para mostrar datos de múltiples hojas con visualizaciones interactivas.
+Dashboard de monitoreo y análisis operacional para el Servicio Nacional de Policía Antinarcóticos (SENPA). Sistema completo de gestión y visualización de operaciones policiales.
 
 ## ✨ Características
 
-- 🎨 **Diseño Moderno**: Interface elegante y sofisticada con gradientes y efectos visuales
-- 📊 **Múltiples Visualizaciones**: Gráficos de barras, líneas, áreas y torta
-- 📋 **Vista de Tabla**: Tabla interactiva con búsqueda y paginación
-- 🔄 **Pestañas Dinámicas**: Una pestaña por cada hoja de Google Sheets
+- 🎯 **Dashboard Ejecutivo**: Métricas operacionales en tiempo real
+- 🌿 **Dashboard Ambiental**: Análisis detallado de operaciones
+- 🗺️ **Mapas Interactivos**: Visualización geográfica de detenidos y vehículos  
+- 👮 **Gestión Operacional**: Control de notas informativas, detenidos, incautaciones
+- 👨‍💼 **Sistema de Usuarios**: Roles y permisos (Admin/Viewer)
+- 📊 **Gráficos Avanzados**: Visualizaciones con Recharts y Material-UI
 - 📱 **Responsive**: Adaptable a todos los dispositivos
-- 🚀 **Rendimiento**: Optimizado para grandes conjuntos de datos
-- 🎯 **Fácil Configuración**: Setup simple con Google Sheets API
+- 🔐 **Autenticación Segura**: Login con Supabase Auth
 
 ## 🚀 Instalación y Configuración
 

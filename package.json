@@ -1,8 +1,11 @@
 {
   "name": "dashboard-senpa",
+  "description": "Dashboard Operativo SENPA - Sistema de monitoreo y análisis operacional",
+  "version": "1.0.0",
   "private": true,
-  "version": "0.0.0",
   "type": "module",
+  "author": "SENPA Development Team",
+  "keywords": ["dashboard", "senpa", "operaciones", "analytics"],
   "scripts": {
     "dev": "vite",
     "build": "vite build",
