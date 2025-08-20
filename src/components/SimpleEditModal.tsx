@@ -6,13 +6,15 @@ import {
   DialogActions,
   Button,
   TextField,
-  FormControlLabel,
-  Checkbox,
   Alert,
   Typography,
   Box,
   Stack,
-  IconButton
+  IconButton,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem
 } from '@mui/material';
 import {
   Close as CloseIcon,
@@ -21,6 +23,8 @@ import {
 } from '@mui/icons-material';
 import type { TableType, NotaInformativa, Detenido, Vehiculo, Incautacion } from '../types/tableTypes';
 import { TABLE_METADATA } from '../types/tableTypes';
+import { enumOptionsService } from '../services/enumOptions';
+import { usePermissions } from '../hooks/usePermissions';
 
 type EditableItem = NotaInformativa | Detenido | Vehiculo | Incautacion;
 
@@ -44,6 +48,7 @@ const SimpleEditModal: React.FC<SimpleEditModalProps> = ({
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [errors, setErrors] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  const permissions = usePermissions();
 
   const metadata = TABLE_METADATA[tableType];
 
@@ -75,10 +80,11 @@ const SimpleEditModal: React.FC<SimpleEditModalProps> = ({
           numeroCaso: '',
           tipoActividad: '',
           areaTemática: '',
-          notificados: 0,
+          notificados: '',
           procuraduria: false,
           resultado: '',
-          observaciones: ''
+          observaciones: '',
+          nota: ''
         };
       case 'detenidos':
         return {
@@ -91,21 +97,18 @@ const SimpleEditModal: React.FC<SimpleEditModalProps> = ({
           nacionalidad: '',
           motivoDetencion: '',
           estadoProceso: 'En proceso',
-          observaciones: ''
+          observaciones: '',
+          nota: ''
         };
       case 'vehiculos':
         return {
-          ...baseValues,
           numeroCaso: '',
-          tipoVehiculo: '',
+          tipo: '',
           marca: '',
-          modelo: '',
-          año: new Date().getFullYear(),
-          placa: '',
           color: '',
-          propietario: '',
-          estado: 'Retenido',
-          observaciones: ''
+          detalle: '',
+          provinciaMunicipio: '',
+          fecha: new Date().toISOString().split('T')[0]
         };
       case 'incautaciones':
         return {
@@ -118,7 +121,8 @@ const SimpleEditModal: React.FC<SimpleEditModalProps> = ({
           valorEstimado: 0,
           estado: 'Incautado',
           custodio: '',
-          observaciones: ''
+          observaciones: '',
+          nota: ''
         };
       default:
         return baseValues;
@@ -135,32 +139,57 @@ const SimpleEditModal: React.FC<SimpleEditModalProps> = ({
   const validateForm = (): string[] => {
     const validationErrors: string[] = [];
 
+    console.log('🟦 Validando formulario para:', tableType);
+    console.log('🟦 Campos requeridos:', metadata.requiredFields);
+    console.log('🟦 FormData actual:', formData);
+
     metadata.requiredFields.forEach(field => {
       const value = formData[field];
+      console.log(`🟦 Validando campo ${field}:`, value);
+      
       if (!value || (typeof value === 'string' && value.trim() === '')) {
-        validationErrors.push(`${getFieldLabel(field)} es requerido`);
+        const errorMsg = `${getFieldLabel(field)} es requerido`;
+        validationErrors.push(errorMsg);
+        console.log(`🟦 Error de validación: ${errorMsg}`);
       }
     });
 
+    // No additional validation needed for simplified vehicle fields
+
+    console.log('🟦 Errores finales de validación:', validationErrors);
     return validationErrors;
   };
 
   const handleSave = async () => {
+    console.log('🟦 SimpleEditModal - handleSave iniciado');
+    console.log('🟦 FormData antes de validar:', formData);
+    console.log('🟦 TableType:', tableType);
+    console.log('🟦 Mode:', mode);
+    
     const validationErrors = validateForm();
+    console.log('🟦 Errores de validación:', validationErrors);
+    
     if (validationErrors.length > 0) {
       setErrors(validationErrors);
       return;
     }
 
     setLoading(true);
+    setErrors([]); // Clear any previous errors
+    
     try {
       if (mode === 'create') {
         formData.id = `${tableType}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       }
 
-      onSave(formData as EditableItem);
+      console.log('🟦 Llamando onSave con:', formData);
+      await onSave(formData as EditableItem);
+      console.log('🟦 onSave completado exitosamente');
+      
+      // Close modal on success
       onClose();
     } catch (error) {
+      console.error('🟦 Error en handleSave:', error);
       setErrors([error instanceof Error ? error.message : 'Error al guardar']);
     } finally {
       setLoading(false);
@@ -182,21 +211,15 @@ const SimpleEditModal: React.FC<SimpleEditModalProps> = ({
       procuraduria: 'Procuraduría',
       resultado: 'Resultado',
       observaciones: 'Observaciones',
+      nota: 'Nota',
       nombre: 'Nombre',
-      apellido: 'Apellido',
-      cedula: 'Cédula',
-      edad: 'Edad',
-      nacionalidad: 'Nacionalidad',
       motivoDetencion: 'Motivo de Detención',
       estadoProceso: 'Estado del Proceso',
-      tipoVehiculo: 'Tipo de Vehículo',
+      tipo: 'Tipo',
       marca: 'Marca',
-      modelo: 'Modelo',
-      año: 'Año',
-      placa: 'Placa',
       color: 'Color',
-      propietario: 'Propietario',
-      estado: 'Estado',
+      detalle: 'Detalle',
+      provinciaMunicipio: 'Provincia/Municipio',
       tipoIncautacion: 'Tipo de Incautación',
       descripcion: 'Descripción',
       cantidad: 'Cantidad',
@@ -212,13 +235,13 @@ const SimpleEditModal: React.FC<SimpleEditModalProps> = ({
     
     switch (tableType) {
       case 'notas_informativas':
-        return [...baseFields, 'tipoActividad', 'areaTemática', 'notificados', 'procuraduria', 'resultado', 'observaciones'];
+        return [...baseFields, 'tipoActividad', 'areaTemática', 'notificados', 'procuraduria', 'resultado', 'observaciones', 'nota'];
       case 'detenidos':
-        return [...baseFields, 'nombre', 'apellido', 'cedula', 'edad', 'nacionalidad', 'motivoDetencion', 'estadoProceso', 'observaciones'];
+        return [...baseFields, 'nombre', 'motivoDetencion', 'estadoProceso', 'observaciones', 'nota'];
       case 'vehiculos':
-        return [...baseFields, 'tipoVehiculo', 'marca', 'modelo', 'año', 'placa', 'color', 'propietario', 'estado', 'observaciones'];
+        return ['numeroCaso', 'tipo', 'marca', 'color', 'detalle', 'provinciaMunicipio', 'fecha'];
       case 'incautaciones':
-        return [...baseFields, 'tipoIncautacion', 'descripcion', 'cantidad', 'unidadMedida', 'valorEstimado', 'estado', 'custodio', 'observaciones'];
+        return [...baseFields, 'tipoIncautacion', 'descripcion', 'cantidad', 'unidadMedida', 'valorEstimado', 'estado', 'custodio', 'observaciones', 'nota'];
       default:
         return baseFields;
     }
@@ -228,22 +251,54 @@ const SimpleEditModal: React.FC<SimpleEditModalProps> = ({
     const value = formData[field];
     const isRequired = metadata.requiredFields.includes(field);
 
-    if (field === 'procuraduria') {
+    // Check if this field should be a dropdown
+    if (enumOptionsService.isDropdownField(field)) {
+      const options = enumOptionsService.getFieldOptions(field);
+      
+      // Special handling for procuraduria (boolean field)
+      if (field === 'procuraduria') {
+        return (
+          <FormControl key={field} fullWidth margin="normal" required={isRequired}>
+            <InputLabel>{getFieldLabel(field)}</InputLabel>
+            <Select
+              value={value !== undefined ? String(value) : ''}
+              onChange={(e) => handleInputChange(field, e.target.value === 'true')}
+              label={getFieldLabel(field)}
+              >
+              {(options as { value: boolean; label: string }[]).map((option) => (
+                <MenuItem key={String(option.value)} value={String(option.value)}>
+                  {option.label}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        );
+      }
+      
+      // Regular dropdown for string options
       return (
-        <FormControlLabel
-          key={field}
-          control={
-            <Checkbox
-              checked={Boolean(value)}
-              onChange={(e) => handleInputChange(field, e.target.checked)}
-            />
-          }
-          label={getFieldLabel(field)}
-        />
+        <FormControl key={field} fullWidth margin="normal" required={isRequired}>
+          <InputLabel>{getFieldLabel(field)}</InputLabel>
+          <Select
+            value={value || ''}
+            onChange={(e) => handleInputChange(field, e.target.value)}
+            label={getFieldLabel(field)}
+          >
+            <MenuItem value="">
+              <em>Seleccionar...</em>
+            </MenuItem>
+            {(options as string[]).map((option) => (
+              <MenuItem key={option} value={option}>
+                {option}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
       );
     }
 
-    if (['edad', 'año', 'cantidad', 'valorEstimado', 'notificados'].includes(field)) {
+    // Number fields
+    if (['año', 'cantidad', 'valorEstimado'].includes(field)) {
       return (
         <TextField
           key={field}
@@ -259,6 +314,7 @@ const SimpleEditModal: React.FC<SimpleEditModalProps> = ({
       );
     }
 
+    // Date fields
     if (field === 'fecha') {
       return (
         <TextField
@@ -276,6 +332,7 @@ const SimpleEditModal: React.FC<SimpleEditModalProps> = ({
       );
     }
 
+    // Time fields
     if (field === 'hora') {
       return (
         <TextField
@@ -292,7 +349,8 @@ const SimpleEditModal: React.FC<SimpleEditModalProps> = ({
       );
     }
 
-    if (['observaciones', 'descripcion', 'resultado'].includes(field)) {
+    // Multiline text fields
+    if (['observaciones', 'descripcion', 'resultado', 'nota', 'detalle'].includes(field)) {
       return (
         <TextField
           key={field}
@@ -309,6 +367,7 @@ const SimpleEditModal: React.FC<SimpleEditModalProps> = ({
       );
     }
 
+    // Default text fields
     return (
       <TextField
         key={field}
@@ -323,6 +382,9 @@ const SimpleEditModal: React.FC<SimpleEditModalProps> = ({
       />
     );
   };
+
+  // Verificar permisos
+  const hasRequiredPermission = mode === 'create' ? permissions.canCreateRecords : permissions.canEditRecords;
 
   return (
     <Dialog 
@@ -343,19 +405,27 @@ const SimpleEditModal: React.FC<SimpleEditModalProps> = ({
       </DialogTitle>
 
       <DialogContent>
-        {errors.length > 0 && (
+        {!hasRequiredPermission ? (
           <Alert severity="error" sx={{ mb: 2 }}>
-            <ul style={{ margin: 0, paddingLeft: '20px' }}>
-              {errors.map((error, index) => (
-                <li key={index}>{error}</li>
-              ))}
-            </ul>
+            {permissions.getPermissionDeniedMessage(mode === 'create' ? 'write' : 'write')}
           </Alert>
-        )}
+        ) : (
+          <>
+            {errors.length > 0 && (
+              <Alert severity="error" sx={{ mb: 2 }}>
+                <ul style={{ margin: 0, paddingLeft: '20px' }}>
+                  {errors.map((error, index) => (
+                    <li key={index}>{error}</li>
+                  ))}
+                </ul>
+              </Alert>
+            )}
 
-        <Stack spacing={2} sx={{ mt: 1 }}>
-          {getFormFields().map(field => renderField(field))}
-        </Stack>
+            <Stack spacing={2} sx={{ mt: 1 }}>
+              {getFormFields().map(field => renderField(field))}
+            </Stack>
+          </>
+        )}
       </DialogContent>
 
       <DialogActions sx={{ p: 2 }}>
@@ -366,14 +436,16 @@ const SimpleEditModal: React.FC<SimpleEditModalProps> = ({
         >
           Cancelar
         </Button>
-        <Button
-          onClick={handleSave}
-          variant="contained"
-          startIcon={<SaveIcon />}
-          disabled={loading}
-        >
-          {loading ? 'Guardando...' : 'Guardar'}
-        </Button>
+        {hasRequiredPermission && (
+          <Button
+            onClick={handleSave}
+            variant="contained"
+            startIcon={<SaveIcon />}
+            disabled={loading}
+          >
+            {loading ? 'Guardando...' : 'Guardar'}
+          </Button>
+        )}
       </DialogActions>
     </Dialog>
   );

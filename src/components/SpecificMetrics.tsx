@@ -120,15 +120,13 @@ const SpecificMetrics: React.FC<SpecificMetricsProps> = ({ sheetsData, filters }
           }
         }
         
-        // Count today's detentions (if no date filter is applied, use today)
-        const countTodayDetentions = !filters?.dateFrom && !filters?.dateTo;
-        if (countTodayDetentions && (fecha.includes(todayStr) || fecha.includes(todayAlt))) {
-          if (tipo.includes('detenido') || tipo.includes('arresto') || tipo.includes('captura')) {
+        // Count detentions in filtered date range (or today if no filter)
+        if (tipo.includes('detenido') || tipo.includes('arresto') || tipo.includes('captura')) {
+          if (filters?.dateFrom || filters?.dateTo) {
+            // If date filters are applied, count detentions in that range for "Detenidos Hoy"
             detenidosHoy++;
-          }
-        } else if (filters?.dateFrom || filters?.dateTo) {
-          // If date filters are applied, count detentions in that range
-          if (tipo.includes('detenido') || tipo.includes('arresto') || tipo.includes('captura')) {
+          } else if (fecha.includes(todayStr) || fecha.includes(todayAlt)) {
+            // If no date filter, only count today's detentions
             detenidosHoy++;
           }
         }
@@ -164,7 +162,7 @@ const SpecificMetrics: React.FC<SpecificMetricsProps> = ({ sheetsData, filters }
 
   const metricCards = [
     {
-      title: 'Detenidos Hoy',
+      title: (filters?.dateFrom || filters?.dateTo) ? 'Detenidos (Rango)' : 'Detenidos Hoy',
       value: metrics.detenidosHoy,
       icon: SecurityIcon,
       color: 'from-red-500 to-red-600',

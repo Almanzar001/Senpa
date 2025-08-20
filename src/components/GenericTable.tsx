@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   Table,
   TableBody,
@@ -22,11 +22,15 @@ import {
   Edit as EditIcon,
   Delete as DeleteIcon,
   Search as SearchIcon,
-  Add as AddIcon
+  Add as AddIcon,
+  Visibility as ViewIcon
 } from '@mui/icons-material';
 import type { TableType, NotaInformativa, Detenido, Vehiculo, Incautacion } from '../types/tableTypes';
 import { TABLE_METADATA } from '../types/tableTypes';
 import SimpleEditModal from './SimpleEditModal';
+import CaseDetailsModal from './CaseDetailsModal';
+import { usePermissions } from '../hooks/usePermissions';
+import { TABLE_CONFIG } from '../constants/styles';
 
 type TableItem = NotaInformativa | Detenido | Vehiculo | Incautacion;
 
@@ -38,6 +42,7 @@ interface GenericTableProps {
   onCreate: (item: TableItem) => void;
   loading?: boolean;
   title?: string;
+  allowCreate?: boolean;
 }
 
 const GenericTable: React.FC<GenericTableProps> = ({
@@ -47,16 +52,40 @@ const GenericTable: React.FC<GenericTableProps> = ({
   onDelete,
   onCreate,
   loading = false,
-  title
+  title,
+  allowCreate = true
 }) => {
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [rowsPerPage, setRowsPerPage] = useState(TABLE_CONFIG.defaultRowsPerPage);
   const [searchTerm, setSearchTerm] = useState('');
   const [editModalOpen, setEditModalOpen] = useState(false);
+  const [detailsModalOpen, setDetailsModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<TableItem | null>(null);
   const [modalMode, setModalMode] = useState<'create' | 'edit'>('edit');
 
+  const permissions = usePermissions();
   const metadata = TABLE_METADATA[tableType];
+
+  const getSearchableFields = (item: TableItem): any[] => {
+    const commonFields = [item.numeroCaso, item.fecha, item.provincia, item.localidad, item.region];
+    
+    switch (tableType) {
+      case 'notas_informativas':
+        const nota = item as NotaInformativa;
+        return [...commonFields, nota.tipoActividad, nota.areaTemática];
+      case 'detenidos':
+        const detenido = item as Detenido;
+        return [...commonFields, detenido.nombre, detenido.motivoDetencion];
+      case 'vehiculos':
+        const vehiculo = item as Vehiculo;
+        return [...commonFields, vehiculo.tipo, vehiculo.marca, vehiculo.color, vehiculo.detalle];
+      case 'incautaciones':
+        const incautacion = item as Incautacion;
+        return [...commonFields, incautacion.tipoIncautacion, incautacion.descripcion];
+      default:
+        return commonFields;
+    }
+  };
 
   // Filter data based on search term
   const filteredData = useMemo(() => {
@@ -70,41 +99,18 @@ const GenericTable: React.FC<GenericTableProps> = ({
     });
   }, [data, searchTerm]);
 
-  const getSearchableFields = (item: TableItem): any[] => {
-    const commonFields = [item.numeroCaso, item.fecha, item.provincia, item.localidad, item.region];
-    
-    switch (tableType) {
-      case 'notas_informativas':
-        const nota = item as NotaInformativa;
-        return [...commonFields, nota.tipoActividad, nota.areaTemática];
-      case 'detenidos':
-        const detenido = item as Detenido;
-        return [...commonFields, detenido.nombre, detenido.apellido, detenido.cedula, detenido.nacionalidad];
-      case 'vehiculos':
-        const vehiculo = item as Vehiculo;
-        return [...commonFields, vehiculo.tipoVehiculo, vehiculo.marca, vehiculo.modelo, vehiculo.placa];
-      case 'incautaciones':
-        const incautacion = item as Incautacion;
-        return [...commonFields, incautacion.tipoIncautacion, incautacion.descripcion];
-      default:
-        return commonFields;
-    }
-  };
-
   const getVisibleColumns = (): string[] => {
-    const baseColumns = ['numeroCaso', 'fecha', 'provincia', 'localidad'];
-    
     switch (tableType) {
       case 'notas_informativas':
-        return [...baseColumns, 'tipoActividad', 'notificados', 'procuraduria'];
+        return ['numeroCaso', 'fecha', 'provincia', 'localidad', 'tipoActividad', 'notificados', 'procuraduria'];
       case 'detenidos':
-        return [...baseColumns, 'nombre', 'apellido', 'nacionalidad', 'estadoProceso'];
+        return ['numeroCaso', 'fecha', 'provincia', 'localidad', 'nombre', 'motivoDetencion', 'estadoProceso'];
       case 'vehiculos':
-        return [...baseColumns, 'tipoVehiculo', 'marca', 'placa', 'estado'];
+        return ['numeroCaso', 'tipo', 'marca', 'color', 'provinciaMunicipio', 'fecha'];
       case 'incautaciones':
-        return [...baseColumns, 'tipoIncautacion', 'cantidad', 'estado'];
+        return ['numeroCaso', 'fecha', 'provincia', 'localidad', 'tipoIncautacion', 'cantidad', 'estado'];
       default:
-        return baseColumns;
+        return ['numeroCaso', 'fecha', 'provincia', 'localidad'];
     }
   };
 
@@ -119,12 +125,13 @@ const GenericTable: React.FC<GenericTableProps> = ({
       notificados: 'Notificados',
       procuraduria: 'Procuraduría',
       nombre: 'Nombre',
-      apellido: 'Apellido',
-      nacionalidad: 'Nacionalidad',
+      motivoDetencion: 'Motivo de Detención',
       estadoProceso: 'Estado del Proceso',
-      tipoVehiculo: 'Tipo de Vehículo',
+      tipo: 'Tipo',
       marca: 'Marca',
-      placa: 'Placa',
+      color: 'Color',
+      detalle: 'Detalle',
+      provinciaMunicipio: 'Provincia/Municipio',
       estado: 'Estado',
       tipoIncautacion: 'Tipo de Incautación',
       cantidad: 'Cantidad'
@@ -151,6 +158,26 @@ const GenericTable: React.FC<GenericTableProps> = ({
       return <span>{value}</span>;
     }
 
+    // Handle notificados field specifically
+    if (column === 'notificados') {
+      if (!value || value.trim() === '') {
+        return (
+          <Chip
+            label="Sin notificar"
+            color="default"
+            size="small"
+          />
+        );
+      }
+      return (
+        <Chip
+          label={String(value)}
+          color="info"
+          size="small"
+        />
+      );
+    }
+
     // Handle status/state fields with chips
     if (column === 'estado' || column === 'estadoProceso') {
       const getStatusColor = (status: string) => {
@@ -174,7 +201,7 @@ const GenericTable: React.FC<GenericTableProps> = ({
     if (column === 'tipoActividad') {
       const getActivityColor = (activity: string) => {
         if (activity.toLowerCase().includes('operativo')) return 'primary';
-        if (activity.toLowerCase().includes('patrulla')) return 'info';
+        if (activity.toLowerCase().includes('patrulla')) return 'success';
         return 'default';
       };
 
@@ -200,39 +227,68 @@ const GenericTable: React.FC<GenericTableProps> = ({
     return <span>{stringValue}</span>;
   };
 
-  const handleEdit = (item: TableItem) => {
+  const handleView = useCallback((item: TableItem) => {
+    setSelectedItem(item);
+    setDetailsModalOpen(true);
+  }, []);
+
+  const handleEdit = useCallback((item: TableItem) => {
     setSelectedItem(item);
     setModalMode('edit');
     setEditModalOpen(true);
-  };
+  }, []);
 
-  const handleCreate = () => {
+  const handleCreate = useCallback(() => {
     setSelectedItem(null);
     setModalMode('create');
     setEditModalOpen(true);
-  };
+  }, []);
 
-  const handleDelete = (id: string) => {
+  const handleDelete = useCallback((id: string) => {
     if (window.confirm('¿Está seguro de que desea eliminar este registro?')) {
       onDelete(id);
     }
-  };
+  }, [onDelete]);
 
-  const handleModalSave = (item: TableItem) => {
-    if (modalMode === 'create') {
-      onCreate(item);
-    } else {
-      onUpdate(item);
+  const handleModalSave = useCallback((item: TableItem) => {
+    console.log('🟦 GenericTable - handleModalSave iniciado');
+    console.log('🟦 ModalMode:', modalMode);
+    console.log('🟦 Item recibido:', item);
+    
+    try {
+      if (modalMode === 'create') {
+        console.log('🟦 Llamando onCreate');
+        onCreate(item);
+      } else if (modalMode === 'edit') {
+        console.log('🟦 Llamando onUpdate');
+        onUpdate(item);
+      }
+      console.log('🟦 Operación completada, cerrando modal');
+      setEditModalOpen(false);
+    } catch (error) {
+      console.error('🟦 Error en handleModalSave:', error);
     }
-    setEditModalOpen(false);
-  };
+  }, [modalMode, onCreate, onUpdate]);
 
-  const paginatedData = filteredData.slice(
-    page * rowsPerPage,
-    page * rowsPerPage + rowsPerPage
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
+  }, []);
+
+  const handlePageChange = useCallback((_: unknown, newPage: number) => {
+    setPage(newPage);
+  }, []);
+
+  const handleRowsPerPageChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  }, []);
+
+  const paginatedData = useMemo(() => 
+    filteredData.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage),
+    [filteredData, page, rowsPerPage]
   );
 
-  const visibleColumns = getVisibleColumns();
+  const visibleColumns = useMemo(() => getVisibleColumns(), [tableType]);
 
   return (
     <Paper sx={{ width: '100%', overflow: 'hidden' }}>
@@ -242,13 +298,15 @@ const GenericTable: React.FC<GenericTableProps> = ({
           <Typography variant="h6">
             {title || metadata.displayName}
           </Typography>
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={handleCreate}
-          >
-            Agregar {metadata.displayName.slice(0, -1)}
-          </Button>
+          {allowCreate && permissions.canCreateRecords && (
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={handleCreate}
+            >
+              Agregar {metadata.displayName.slice(0, -1)}
+            </Button>
+          )}
         </Box>
 
         {/* Search */}
@@ -257,15 +315,27 @@ const GenericTable: React.FC<GenericTableProps> = ({
           variant="outlined"
           placeholder={`Buscar en ${metadata.displayName.toLowerCase()}...`}
           value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
+          onChange={handleSearchChange}
+          onMouseDown={(e) => {
+            e.stopPropagation();
+          }}
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
                 <SearchIcon />
               </InputAdornment>
             ),
+            onClick: (e) => {
+              e.stopPropagation();
+              e.currentTarget.focus();
+            }
           }}
           size="small"
+          sx={{
+            '& .MuiInputBase-input': {
+              cursor: 'text'
+            }
+          }}
         />
 
         {/* Stats */}
@@ -298,7 +368,7 @@ const GenericTable: React.FC<GenericTableProps> = ({
         </Box>
       ) : (
         <>
-          <TableContainer sx={{ maxHeight: 600 }}>
+          <TableContainer sx={{ maxHeight: TABLE_CONFIG.maxHeight }}>
             <Table stickyHeader>
               <TableHead>
                 <TableRow>
@@ -307,7 +377,7 @@ const GenericTable: React.FC<GenericTableProps> = ({
                       {getColumnLabel(column)}
                     </TableCell>
                   ))}
-                  <TableCell sx={{ fontWeight: 'bold', width: 120 }}>
+                  <TableCell sx={{ fontWeight: 'bold', width: 160 }}>
                     Acciones
                   </TableCell>
                 </TableRow>
@@ -322,24 +392,37 @@ const GenericTable: React.FC<GenericTableProps> = ({
                     ))}
                     <TableCell>
                       <Box display="flex" gap={1}>
-                        <Tooltip title="Editar">
+                        <Tooltip title="Ver detalles">
                           <IconButton
                             size="small"
-                            onClick={() => handleEdit(item)}
-                            color="primary"
+                            onClick={() => handleView(item)}
+                            color="info"
                           >
-                            <EditIcon fontSize="small" />
+                            <ViewIcon fontSize="small" />
                           </IconButton>
                         </Tooltip>
-                        <Tooltip title="Eliminar">
-                          <IconButton
-                            size="small"
-                            onClick={() => handleDelete(item.id)}
-                            color="error"
-                          >
-                            <DeleteIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
+                        {permissions.canEditRecords && (
+                          <Tooltip title="Editar">
+                            <IconButton
+                              size="small"
+                              onClick={() => handleEdit(item)}
+                              color="primary"
+                            >
+                              <EditIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        )}
+                        {permissions.canDeleteRecords && (
+                          <Tooltip title="Eliminar">
+                            <IconButton
+                              size="small"
+                              onClick={() => handleDelete(item.id)}
+                              color="error"
+                            >
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        )}
                       </Box>
                     </TableCell>
                   </TableRow>
@@ -350,16 +433,13 @@ const GenericTable: React.FC<GenericTableProps> = ({
 
           {/* Pagination */}
           <TablePagination
-            rowsPerPageOptions={[5, 10, 25, 50]}
+            rowsPerPageOptions={TABLE_CONFIG.rowsPerPageOptions}
             component="div"
             count={filteredData.length}
             rowsPerPage={rowsPerPage}
             page={page}
-            onPageChange={(_, newPage) => setPage(newPage)}
-            onRowsPerPageChange={(event) => {
-              setRowsPerPage(parseInt(event.target.value, 10));
-              setPage(0);
-            }}
+            onPageChange={handlePageChange}
+            onRowsPerPageChange={handleRowsPerPageChange}
             labelRowsPerPage="Filas por página:"
             labelDisplayedRows={({ from, to, count }) =>
               `${from}-${to} de ${count !== -1 ? count : `más de ${to}`}`
@@ -376,6 +456,14 @@ const GenericTable: React.FC<GenericTableProps> = ({
         item={selectedItem}
         tableType={tableType}
         mode={modalMode}
+      />
+
+      {/* Details Modal */}
+      <CaseDetailsModal
+        open={detailsModalOpen}
+        onClose={() => setDetailsModalOpen(false)}
+        item={selectedItem}
+        tableType={tableType}
       />
     </Paper>
   );

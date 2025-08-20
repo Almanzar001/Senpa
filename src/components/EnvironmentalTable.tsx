@@ -273,6 +273,21 @@ const EnvironmentalTable: React.FC<EnvironmentalTableProps> = ({
       return <span>{String(value)}</span>;
     }
 
+    if (field === 'procuraduria') {
+      return (
+        <FormControl size="small" fullWidth>
+          <Select
+            value={value ? 'si' : 'no'}
+            onChange={(e) => handleFieldChange(field, e.target.value === 'si')}
+            displayEmpty
+          >
+            <SelectMenuItem value="si">Sí</SelectMenuItem>
+            <SelectMenuItem value="no">No</SelectMenuItem>
+          </Select>
+        </FormControl>
+      );
+    }
+
     if (field === 'tipoActividad') {
       return (
         <FormControl size="small" fullWidth>
@@ -464,7 +479,7 @@ const EnvironmentalTable: React.FC<EnvironmentalTableProps> = ({
               <TableRow>
                 {[
                   'Caso', 'Fecha', 'Hora', 'Provincia', 'Localidad', 
-                  'Actividad', 'Área Temática', 'Detenidos', 'Vehículos', 'Incautaciones', 'Acciones'
+                  'Actividad', 'Área Temática', 'Detenidos', 'Vehículos', 'Incautaciones', 'Notificados', 'Procuraduría', 'Acciones'
                 ].map((header, index) => (
                   <TableCell
                     key={index}
@@ -552,6 +567,28 @@ const EnvironmentalTable: React.FC<EnvironmentalTableProps> = ({
                           <span className="text-gray-400 text-sm">Sin incautaciones</span>
                         )}
                       </div>
+                    </TableCell>
+                    <TableCell className="text-center" sx={getCellStyle('notificados')}>
+                      {editingCase === envCase.numeroCaso ? 
+                        renderEditableCell(envCase, 'notificados', true) :
+                        <Chip 
+                          label={envCase.notificados} 
+                          size="small" 
+                          color={envCase.notificados > 0 ? "info" : "default"}
+                          variant="filled"
+                        />
+                      }
+                    </TableCell>
+                    <TableCell className="text-center" sx={getCellStyle('procuraduria')}>
+                      {editingCase === envCase.numeroCaso ? 
+                        renderEditableCell(envCase, 'procuraduria') :
+                        <Chip 
+                          label={envCase.procuraduria ? "Sí" : "No"} 
+                          size="small" 
+                          color={envCase.procuraduria ? "success" : "default"}
+                          variant="filled"
+                        />
+                      }
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center space-x-1">

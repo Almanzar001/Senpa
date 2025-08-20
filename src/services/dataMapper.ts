@@ -2,6 +2,25 @@ import type { EnvironmentalCase } from './environmentalAnalytics';
 import type { NotaInformativa, Detenido, Vehiculo, Incautacion } from '../types/tableTypes';
 
 export class DataMapperService {
+  // Helper method to count related records by numeroCaso
+  static countRelatedRecords(cases: EnvironmentalCase[], numeroCaso: string, recordType: 'detenidos' | 'vehiculos' | 'incautaciones'): number {
+    // This will be implemented when we have access to the actual table data
+    // For now, we'll use the existing logic but this is where we'd query the related tables
+    const relatedCase = cases.find(c => c.numeroCaso === numeroCaso);
+    if (!relatedCase) return 0;
+    
+    switch (recordType) {
+      case 'detenidos':
+        return relatedCase.detenidos || 0;
+      case 'vehiculos': 
+        return relatedCase.vehiculosDetenidos || 0;
+      case 'incautaciones':
+        return relatedCase.incautaciones?.length || 0;
+      default:
+        return 0;
+    }
+  }
+  
   // Mapear EnvironmentalCase a NotaInformativa con filtro opcional
   static mapToNotaInformativa(cases: EnvironmentalCase[], filterType?: string): NotaInformativa[] {
     let filteredCases = cases;
@@ -20,9 +39,12 @@ export class DataMapperService {
           );
           break;
         case 'notificados':
-          filteredCases = cases.filter(c => 
-            c.notificados && c.notificados > 0
-          );
+          filteredCases = cases.filter(c => {
+            const notificadosInfo = c.notificadosInfo;
+            return notificadosInfo && 
+                   typeof notificadosInfo === 'string' && 
+                   notificadosInfo.trim() !== '';
+          });
           break;
         case 'procuraduria':
           filteredCases = cases.filter(c => 
@@ -42,11 +64,16 @@ export class DataMapperService {
       region: envCase.region,
       tipoActividad: envCase.tipoActividad,
       areaTemática: envCase.areaTemática,
-      notificados: envCase.notificados,
+      notificados: envCase.notificadosInfo || '',
       procuraduria: envCase.procuraduria,
       resultado: envCase.resultado || '',
       observaciones: '',
-      coordenadas: envCase.coordenadas
+      coordenadas: envCase.coordenadas,
+      nota: (envCase as any).nota || '',
+      // Add counts for related tables
+      detenidos: DataMapperService.countRelatedRecords(filteredCases, envCase.numeroCaso, 'detenidos'),
+      vehiculosDetenidos: DataMapperService.countRelatedRecords(filteredCases, envCase.numeroCaso, 'vehiculos'),
+      incautacionesCount: DataMapperService.countRelatedRecords(filteredCases, envCase.numeroCaso, 'incautaciones')
     }));
   }
 
@@ -68,10 +95,6 @@ export class DataMapperService {
               localidad: envCase.localidad,
               region: envCase.region,
               nombre: detenidoInfo.nombre || 'No especificado',
-              apellido: detenidoInfo.apellido || '',
-              cedula: detenidoInfo.cedula || 'No especificada',
-              edad: detenidoInfo.edad || 0,
-              nacionalidad: detenidoInfo.nacionalidad || 'No especificada',
               motivoDetencion: 'Delito ambiental',
               estadoProceso: 'En proceso',
               observaciones: ''
@@ -89,10 +112,6 @@ export class DataMapperService {
               localidad: envCase.localidad,
               region: envCase.region,
               nombre: `Detenido ${i + 1}`,
-              apellido: '',
-              cedula: 'No especificada',
-              edad: 0,
-              nacionalidad: 'No especificada',
               motivoDetencion: 'Delito ambiental',
               estadoProceso: 'En proceso',
               observaciones: `Caso: ${envCase.numeroCaso}`
@@ -124,17 +143,18 @@ export class DataMapperService {
               region: envCase.region,
               tipoVehiculo: vehiculoInfo.tipo || 'No especificado',
               marca: vehiculoInfo.marca || 'No especificada',
-              modelo: vehiculoInfo.modelo || 'No especificado',
-              año: vehiculoInfo.año || new Date().getFullYear(),
-              placa: vehiculoInfo.placa || 'No especificada',
               color: vehiculoInfo.color || 'No especificado',
-              propietario: vehiculoInfo.propietario || 'No especificado',
+              // Campos que no están en tu BD
+              modelo: '',
+              año: new Date().getFullYear(),
+              placa: '',
+              propietario: '',
               estado: 'Retenido',
               observaciones: ''
             });
           });
         } else {
-          // Si no hay info detallada, crear registros genéricos
+          // Si no hay info detallada, crear registros genéricos basados en el conteo
           for (let i = 0; i < envCase.vehiculosDetenidos; i++) {
             vehiculos.push({
               id: `vehiculo_${envCase.numeroCaso}_${i}`,
@@ -146,11 +166,12 @@ export class DataMapperService {
               region: envCase.region,
               tipoVehiculo: 'Vehículo',
               marca: 'No especificada',
-              modelo: 'No especificado',
-              año: new Date().getFullYear(),
-              placa: 'No especificada',
               color: 'No especificado',
-              propietario: 'No especificado',
+              // Campos que no están en tu BD
+              modelo: '',
+              año: new Date().getFullYear(),
+              placa: '',
+              propietario: '',
               estado: 'Retenido',
               observaciones: `Caso: ${envCase.numeroCaso}`
             });
@@ -259,7 +280,7 @@ export class DataMapperService {
         region: nota.region,
         tipoActividad: nota.tipoActividad,
         areaTemática: nota.areaTemática,
-        notificados: nota.notificados,
+        notificados: typeof nota.notificados === 'number' ? nota.notificados : parseInt(String(nota.notificados || 0)) || 0,
         procuraduria: nota.procuraduria,
         resultado: nota.resultado
       }),

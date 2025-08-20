@@ -1,12 +1,13 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 
-// Definir todos los tipos aquí para evitar problemas de importación circular
+// Definir nuestro propio tipo de User para evitar problemas de importación
 export interface User {
   id: string;
   email?: string;
   [key: string]: any;
 }
 
+// Importar solo los tipos para evitar problemas de inicialización
 export interface UserProfile {
   id: string;
   email: string;
@@ -44,25 +45,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(false); // Cambiar a false inicialmente
 
-  // Función para cargar AuthService dinámicamente
+  // Función lazy para importar AuthService solo cuando se necesite
   const getAuthService = async () => {
     const { AuthService } = await import('../services/auth');
     return AuthService;
   };
-
-  useEffect(() => {
-    // Verificar usuario al cargar
-    const initAuth = async () => {
-      try {
-        await checkCurrentUser();
-      } catch (error) {
-        console.warn('Auth initialization failed:', error);
-        setLoading(false);
-      }
-    };
-
-    initAuth();
-  }, []);
 
   const checkCurrentUser = async () => {
     try {
@@ -130,6 +117,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         return false;
     }
   };
+
+  // Usar useEffect con dependencias controladas
+  useEffect(() => {
+    // Solo verificar usuario si no hay errores de configuración
+    const initAuth = async () => {
+      try {
+        await checkCurrentUser();
+      } catch (error) {
+        console.warn('Auth initialization failed:', error);
+        setLoading(false);
+      }
+    };
+
+    initAuth();
+  }, []); // Solo ejecutar una vez al montar
 
   const value: AuthContextType = {
     user,

@@ -114,7 +114,12 @@ const EnvironmentalMetrics: React.FC<EnvironmentalMetricsProps> = ({
 
   const handleCardClick = (filterKey: string, value: number) => {
     if (value > 0) {
-      navigate(`/operations?filter=${filterKey}&value=${value}`);
+      // Direct route to specific pages for better organization
+      if (filterKey === 'notificados') {
+        navigate('/operations/notificados');
+      } else {
+        navigate(`/operations?filter=${filterKey}&value=${value}`);
+      }
     }
   };
 

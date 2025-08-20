@@ -1,4 +1,4 @@
-import { type SheetData } from './supabase';
+import { type SheetData } from './googleSheets';
 
 export interface EnvironmentalCase {
   numeroCaso: string;
@@ -12,7 +12,8 @@ export interface EnvironmentalCase {
   detenidos: number;
   vehiculosDetenidos: number;
   incautaciones: string[];
-  notificados: number;
+  notificados: string; // Text field with names
+  notificadosCount?: number; // Count for metrics
   procuraduria: boolean;
   resultado?: string;
   coordenadas?: {
@@ -44,13 +45,29 @@ export interface EnvironmentalFilters {
   areaTemática: string[];
   searchText: string;
   activeDateFilter?: string; // ID del filtro de fecha activo
+  isExecutiveView?: boolean; // Flag para vista ejecutiva
 }
 
 class EnvironmentalAnalyticsService {
-  private cases: Map<string, EnvironmentalCase> = new Map();
+  public cases: Map<string, EnvironmentalCase> = new Map();
 
   constructor() {
     this.cases = new Map();
+  }
+
+  // Helper method to count notificados from a string of names
+  private countNotificados(notificadosString: any): number {
+    if (!notificadosString) return 0;
+    
+    const str = String(notificadosString).trim();
+    if (!str) return 0;
+    
+    // Split by common separators and count non-empty names
+    const names = str.split(/[,;|\n\r]+/)
+      .map(name => name.trim())
+      .filter(name => name.length > 0);
+    
+    return names.length;
   }
 
   // Analizar y combinar datos de todas las hojas usando numeroCaso
@@ -66,6 +83,9 @@ class EnvironmentalAnalyticsService {
       const headers = sheet.data[0] as string[];
       const rows = sheet.data.slice(1);
       
+      console.log(`🔍 Analytics: Procesando hoja "${sheet.name}"`);
+      console.log('🔍 Analytics: Headers disponibles:', headers);
+      
       // Encontrar columnas importantes
       const numeroCasoCol = headers.findIndex(h => 
         h.toLowerCase().includes('numerocaso') || 
@@ -73,7 +93,10 @@ class EnvironmentalAnalyticsService {
         h.toLowerCase().includes('caso')
       );
       
-      if (numeroCasoCol === -1) return; // Skip sheets without numeroCaso
+      if (numeroCasoCol === -1) {
+        console.log(`🔍 Analytics: Saltando hoja "${sheet.name}" - no tiene columna numeroCaso`);
+        return; // Skip sheets without numeroCaso
+      }
       
       const fechaCol = headers.findIndex(h => h.toLowerCase().includes('fecha'));
       const horaCol = headers.findIndex(h => h.toLowerCase().includes('hora'));
@@ -88,6 +111,14 @@ class EnvironmentalAnalyticsService {
         h.toLowerCase().includes('municipio') ||
         h.toLowerCase().includes('ubicacion')
       );
+      
+      console.log(`🔍 Analytics: Columnas encontradas en "${sheet.name}":`, {
+        numeroCaso: numeroCasoCol,
+        fecha: fechaCol,
+        provincia: provinciaCol,
+        region: regionCol,
+        localidad: localidadCol
+      });
       const tipoActividadCol = headers.findIndex(h => {
         const hLower = h.toLowerCase();
         return hLower.includes('tipo') && (hLower.includes('actividad') || hLower.includes('operacion'));
@@ -115,6 +146,14 @@ class EnvironmentalAnalyticsService {
       });
 
       const resultadoCol = headers.findIndex(h => h.toLowerCase().includes('resultado'));
+      
+      const notaCol = headers.findIndex(h => {
+        const hLower = h.toLowerCase().trim();
+        return hLower === 'nota' || 
+               hLower.includes('nota') ||
+               hLower === 'notas' ||
+               hLower.includes('observacion');
+      });
 
       let casosEncontradosEnEstaHoja = 0;
       let casosSinNumero = 0;
@@ -142,17 +181,51 @@ class EnvironmentalAnalyticsService {
             detenidos: 0,
             vehiculosDetenidos: 0,
             incautaciones: [],
-            notificados: notificadosCol >= 0 && row[notificadosCol] && String(row[notificadosCol]).trim() ? 1 : 0,
-            procuraduria: procuraduriaCol >= 0 ? String(row[procuraduriaCol] || '').toLowerCase() === 'si' : false
+            notificados: notificadosCol >= 0 ? String(row[notificadosCol] || '').trim() : '', // Keep as text
+            notificadosCount: this.countNotificados(notificadosCol >= 0 ? row[notificadosCol] : ''), // Count for metrics
+            procuraduria: procuraduriaCol >= 0 ? String(row[procuraduriaCol] || '').toLowerCase() === 'si' : false,
+            nota: notaCol >= 0 ? String(row[notaCol] || '').trim() : '' // Add nota field from database
           };
+          
+          // Log de caso creado para debugging
+          if (casosEncontradosEnEstaHoja < 3) {
+            console.log(`🔍 Analytics: Caso creado en "${sheet.name}":`, {
+              numeroCaso: envCase.numeroCaso,
+              provincia: envCase.provincia,
+              region: envCase.region,
+              localidad: envCase.localidad,
+              tipoActividad: envCase.tipoActividad,
+              areaTemática: envCase.areaTemática,
+              fecha: envCase.fecha
+            });
+          }
+          
+          // Log específico para Sánchez Ramírez y región 07
+          if ((envCase.provincia && envCase.provincia.toLowerCase().includes('sanchez')) || 
+              (envCase.region && envCase.region.includes('07')) ||
+              (envCase.fecha && (envCase.fecha.includes('2025-08-09') || envCase.fecha.includes('9/8/2025')))) {
+            console.log(`🎯 CASO ESPECÍFICO ENCONTRADO:`, {
+              numeroCaso: envCase.numeroCaso,
+              fecha: envCase.fecha,
+              provincia: envCase.provincia,
+              region: envCase.region,
+              localidad: envCase.localidad,
+              tipoActividad: envCase.tipoActividad,
+              areaTemática: envCase.areaTemática,
+              hoja: sheet.name
+            });
+          }
+          
           this.cases.set(numeroCaso, envCase);
           casosEncontradosEnEstaHoja++;
           
         } else {
           // Actualizar campos si encontramos nuevos datos
           if (notificadosCol >= 0 && row[notificadosCol] && String(row[notificadosCol]).trim()) {
-            // Si ya tenía notificados, mantener 1, si no tenía, ahora tiene 1
-            envCase.notificados = 1;
+            // Update the text field and count
+            const notificadosString = String(row[notificadosCol]).trim();
+            envCase.notificados = notificadosString; // Keep as text
+            envCase.notificadosCount = Math.max(envCase.notificadosCount || 0, this.countNotificados(row[notificadosCol]));
           }
           
           if (procuraduriaCol >= 0 && row[procuraduriaCol]) {
@@ -170,6 +243,35 @@ class EnvironmentalAnalyticsService {
     });
 
     const finalCases = Array.from(this.cases.values());
+    
+    // Log específico para casos de hoy
+    const casosHoy = finalCases.filter(c => c.fecha && c.fecha.includes('9/8/2025'));
+    const casosSanchezHoy = finalCases.filter(c => 
+      c.provincia && c.provincia.toLowerCase().includes('sanchez') && 
+      c.fecha && c.fecha.includes('9/8/2025')
+    );
+    
+    console.log('🔍 Analytics: Casos específicos de hoy (9/8/2025):', {
+      totalCasosHoy: casosHoy.length,
+      casosSanchezRamirezHoy: casosSanchezHoy.length,
+      numerosDeCSsosSanchezHoy: casosSanchezHoy.map(c => c.numeroCaso),
+      detallesCasosSanchezHoy: casosSanchezHoy.map(c => ({
+        numero: c.numeroCaso,
+        fecha: c.fecha,
+        provincia: c.provincia,
+        region: c.region,
+        tipoActividad: c.tipoActividad
+      }))
+    });
+    
+    console.log('🔍 Analytics: Resumen final:', {
+      totalCases: finalCases.length,
+      casesWithRegion: finalCases.filter(c => c.region && c.region.trim()).length,
+      uniqueRegions: [...new Set(finalCases.map(c => c.region).filter(r => r && r.trim()))],
+      casesWithProvincia: finalCases.filter(c => c.provincia && c.provincia.trim()).length,
+      uniqueProvincias: [...new Set(finalCases.map(c => c.provincia).filter(p => p && p.trim()))]
+    });
+    
     return finalCases;
   }
 
@@ -187,8 +289,10 @@ class EnvironmentalAnalyticsService {
       });
       
       if (cantidadCol >= 0 && row[cantidadCol] && String(row[cantidadCol]).trim()) {
-        // Solo marcar que este caso tiene notificados (1 o 0)
-        envCase.notificados = 1;
+        // Update the text field and count
+        const notificadosString = String(row[cantidadCol]).trim();
+        envCase.notificados = notificadosString; // Keep as text
+        envCase.notificadosCount = Math.max(envCase.notificadosCount || 0, this.countNotificados(row[cantidadCol]));
       }
     }
 
@@ -209,19 +313,26 @@ class EnvironmentalAnalyticsService {
 
     // Análisis de vehículos
     if (sheetNameLower.includes('vehiculo') || sheetNameLower.includes('transporte')) {
-      const tipoVehiculoCol = headers.findIndex(h => 
-        h.toLowerCase().includes('tipo') || 
-        h.toLowerCase().includes('vehiculo') ||
-        h.toLowerCase().includes('modelo')
+      const tipoCol = headers.findIndex(h => 
+        h.toLowerCase().trim() === 'tipo' ||
+        h.toLowerCase().includes('tipo')
       );
-      const placaCol = headers.findIndex(h => h.toLowerCase().includes('placa'));
+      const marcaCol = headers.findIndex(h => 
+        h.toLowerCase().trim() === 'marca' ||
+        h.toLowerCase().includes('marca')
+      );
+      const colorCol = headers.findIndex(h => 
+        h.toLowerCase().trim() === 'color' ||
+        h.toLowerCase().includes('color')
+      );
       
-      if (tipoVehiculoCol >= 0 && row[tipoVehiculoCol]) {
+      if (tipoCol >= 0 && row[tipoCol]) {
         envCase.vehiculosDetenidos++;
         if (!envCase.vehiculosInfo) envCase.vehiculosInfo = [];
         envCase.vehiculosInfo.push({
-          tipo: String(row[tipoVehiculoCol] || ''),
-          placa: placaCol >= 0 ? String(row[placaCol] || '') : ''
+          tipo: String(row[tipoCol] || ''),
+          marca: marcaCol >= 0 ? String(row[marcaCol] || '') : 'No especificada',
+          color: colorCol >= 0 ? String(row[colorCol] || '') : 'No especificado'
         });
       }
     }
@@ -339,7 +450,7 @@ class EnvironmentalAnalyticsService {
         .filter(loc => loc.length > 0)
     ).size;
 
-    const notificados = filteredCases.reduce((total, c) => total + c.notificados, 0);
+    const notificados = filteredCases.reduce((total, c) => total + (c.notificadosCount || 0), 0);
     
     const procuraduria = filteredCases.filter(c => c.procuraduria).length;
     
@@ -369,8 +480,53 @@ class EnvironmentalAnalyticsService {
       return cases;
     }
 
+    console.log('🔍 ApplyFilters: Iniciando filtrado con:', {
+      totalCases: cases.length,
+      filters: filters,
+      casesWithRegion07: cases.filter(c => c.region && c.region.includes('07')).length,
+      casesWithSanchezRamirez: cases.filter(c => c.provincia && c.provincia.toLowerCase().includes('sanchez')).length,
+      casesWithDate20250809: cases.filter(c => c.fecha && c.fecha.includes('2025-08-09')).length,
+      casesWithDate982025: cases.filter(c => c.fecha && c.fecha.includes('9/8/2025')).length,
+      casosSanchezConFecha9Aug: cases.filter(c => 
+        c.provincia && c.provincia.toLowerCase().includes('sanchez') && 
+        c.fecha && c.fecha.includes('9/8/2025')
+      ).length
+    });
+
     const filteredCases = cases.filter(envCase => {
-      // Filtro de fecha
+          // Log específico para casos de Sánchez Ramírez / Región 07 / Fecha 09-08-2025
+          const isTargetCase = (envCase.provincia && envCase.provincia.toLowerCase().includes('sanchez')) ||
+                              (envCase.region && envCase.region.includes('07')) ||
+                              (envCase.fecha && (envCase.fecha.includes('2025-08-09') || envCase.fecha.includes('09/08/2025') || envCase.fecha.includes('9/8/2025')));
+                          
+          if (isTargetCase) {
+            console.log(`🎯 EVALUANDO CASO ESPECÍFICO:`, {
+              numeroCaso: envCase.numeroCaso,
+              fecha: envCase.fecha,
+              provincia: envCase.provincia,
+              region: envCase.region,
+              tipoActividad: envCase.tipoActividad,
+              filtros: {
+                dateFrom: filters.dateFrom,
+                dateTo: filters.dateTo,
+                region: filters.region,
+                provincia: filters.provincia,
+                tipoActividad: filters.tipoActividad
+              }
+            });
+          }
+          
+          // Log específico para casos de Sánchez Ramírez con fecha 9/8/2025 - mostrar todas las regiones
+          if (envCase.provincia && envCase.provincia.toLowerCase().includes('sanchez') && 
+              envCase.fecha && envCase.fecha.includes('9/8/2025')) {
+            console.log(`🏛️ SÁNCHEZ RAMÍREZ CASO 9/8/2025:`, {
+              numeroCaso: envCase.numeroCaso,
+              provincia: envCase.provincia,
+              region: envCase.region,
+              tipoActividad: envCase.tipoActividad,
+              localidad: envCase.localidad
+            });
+          }      // Filtro de fecha
       if (filters.dateFrom || filters.dateTo) {
         let caseDate: Date | null = null;
         
@@ -393,16 +549,21 @@ class EnvironmentalAnalyticsService {
               }
             }
           }
-          // Format 2: DD/MM/YYYY, DD/M/YYYY, D/MM/YYYY, D/M/YYYY, DD-MM-YYYY, etc.
+          // Format 2: D/M/YYYY, DD/MM/YYYY, D/MM/YYYY, DD/M/YYYY (formato europeo/dominicano)
           else if (dateStr.match(/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}$/)) {
             const parts = dateStr.split(/[\/\-]/);
             if (parts.length === 3) {
-              const day = parseInt(parts[0], 10);
-              const month = parseInt(parts[1], 10);
+              const day = parseInt(parts[0], 10);    // Primer número es el DÍA
+              const month = parseInt(parts[1], 10);  // Segundo número es el MES  
               const year = parseInt(parts[2], 10);
               if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
                 // Constructing date from parts ensures it's in local timezone
                 caseDate = new Date(year, month - 1, day);
+                
+                // Log específico para debugging de parsing de fechas
+                if (envCase.region === '07' || envCase.provincia.includes('Sánchez')) {
+                  console.log(`🗓️ PARSING DD/MM/YYYY: "${dateStr}" → Día:${day}, Mes:${month}, Año:${year} → ${caseDate.toLocaleDateString('es-ES')}`);
+                }
               }
             }
           }
@@ -420,20 +581,52 @@ class EnvironmentalAnalyticsService {
         }
         
         if (caseDate && !isNaN(caseDate.getTime())) {
+          // Normalize caseDate to the start of its day for consistent comparison
+          caseDate.setHours(0, 0, 0, 0);
+          
+          // Log specific cases for debugging
+          if (envCase.region === '07' || envCase.provincia.includes('Sánchez')) {
+            console.log(`📅 FECHA PARSEADA:`, {
+              fechaOriginal: envCase.fecha,
+              fechaParseada: caseDate.toLocaleDateString('es-ES'),
+              fechaISO: caseDate.toISOString().split('T')[0],
+              provincia: envCase.provincia,
+              region: envCase.region
+            });
+          }
+          
           // Ensure filter dates are parsed in local timezone correctly
           const filterFromDate = filters.dateFrom ? new Date(`${filters.dateFrom}T00:00:00`) : null;
           const filterToDate = filters.dateTo ? new Date(`${filters.dateTo}T23:59:59.999`) : null;
-
-          // Normalize caseDate to the start of its day for consistent comparison
-          caseDate.setHours(0, 0, 0, 0);
+          
+          // Log filter dates for debugging
+          if ((envCase.region === '07' || envCase.provincia.includes('Sánchez')) && (filterFromDate || filterToDate)) {
+            console.log(`🗓️ FILTROS DE FECHA:`, {
+              filterFromDate: filterFromDate?.toLocaleDateString('es-ES'),
+              filterToDate: filterToDate?.toLocaleDateString('es-ES'),
+              filterFromDateISO: filters.dateFrom,
+              filterToDateISO: filters.dateTo,
+              casoFecha: caseDate.toLocaleDateString('es-ES'),
+              casoFechaISO: caseDate.toISOString().split('T')[0]
+            });
+          }
 
           if (filterFromDate && caseDate < filterFromDate) {
+            if (envCase.region === '07' || envCase.provincia.includes('Sánchez')) {
+              console.log(`🗓️ REJECT DATE FROM: Case ${envCase.fecha} is before ${filters.dateFrom}:`, envCase);
+            }
             return false;
           }
           if (filterToDate && caseDate > filterToDate) {
+            if (envCase.region === '07' || envCase.provincia.includes('Sánchez')) {
+              console.log(`🗓️ REJECT DATE TO: Case ${envCase.fecha} is after ${filters.dateTo}:`, envCase);
+            }
             return false;
           }
         } else if (filters.dateFrom || filters.dateTo) {
+          if (envCase.region === '07' || envCase.provincia.includes('Sánchez')) {
+            console.log(`🗓️ REJECT INVALID DATE: Case has invalid date when date filter is active:`, envCase);
+          }
           return false; // Exclude cases without valid dates when date filter is active
         }
       }
@@ -443,7 +636,12 @@ class EnvironmentalAnalyticsService {
         const matchesProvincia = filters.provincia.some(p =>
           envCase.provincia.toLowerCase().includes(p.toLowerCase())
         );
-        if (!matchesProvincia) return false;
+        if (!matchesProvincia) {
+          if (envCase.region === '07' || envCase.provincia.includes('Sánchez')) {
+            console.log(`🏛️ REJECT PROVINCIA: Case provincia "${envCase.provincia}" doesn't match filter:`, filters.provincia, envCase);
+          }
+          return false;
+        }
       }
 
       // Filtro de región
@@ -453,6 +651,9 @@ class EnvironmentalAnalyticsService {
         );
         
         if (!matchesRegion) {
+          if (envCase.region === '07' || envCase.provincia.includes('Sánchez')) {
+            console.log(`🗺️ REJECT REGION: Case region "${envCase.region}" doesn't match filter:`, filters.region, envCase);
+          }
           return false;
         }
       }
@@ -462,7 +663,12 @@ class EnvironmentalAnalyticsService {
         const matchesTipo = filters.tipoActividad.some(t =>
           envCase.tipoActividad.toLowerCase().includes(t.toLowerCase())
         );
-        if (!matchesTipo) return false;
+        if (!matchesTipo) {
+          if (envCase.region === '07' || envCase.provincia.includes('Sánchez')) {
+            console.log(`🎯 REJECT TIPO ACTIVIDAD: Case tipo "${envCase.tipoActividad}" doesn't match filter:`, filters.tipoActividad, envCase);
+          }
+          return false;
+        }
       }
 
       // Filtro de área temática
@@ -470,7 +676,12 @@ class EnvironmentalAnalyticsService {
         const matchesArea = filters.areaTemática.some(a =>
           envCase.areaTemática.toLowerCase().includes(a.toLowerCase())
         );
-        if (!matchesArea) return false;
+        if (!matchesArea) {
+          if (envCase.region === '07' || envCase.provincia.includes('Sánchez')) {
+            console.log(`📋 REJECT AREA TEMATICA: Case area "${envCase.areaTemática}" doesn't match filter:`, filters.areaTemática, envCase);
+          }
+          return false;
+        }
       }
 
       // Filtro de búsqueda de texto
@@ -485,11 +696,35 @@ class EnvironmentalAnalyticsService {
         ].join(' ').toLowerCase();
         
         if (!searchableText.includes(searchLower)) {
+          if (envCase.region === '07' || envCase.provincia.includes('Sánchez')) {
+            console.log(`🔍 REJECT SEARCH TEXT: Case doesn't match search "${filters.searchText}":`, envCase);
+          }
           return false;
         }
       }
 
+      // Si llegamos aquí, el caso pasó todos los filtros
+      if (envCase.region === '07' || envCase.provincia.includes('Sánchez')) {
+        console.log(`✅ CASE PASSED ALL FILTERS:`, envCase);
+      }
+
       return true;
+    });
+    
+    console.log('🔍 ApplyFilters: Resultado del filtrado:', {
+      casosOriginales: cases.length,
+      casosFiltrados: filteredCases.length,
+      casosDescartados: cases.length - filteredCases.length,
+      casosConRegion07Filtrados: filteredCases.filter(c => c.region && c.region.includes('07')).length,
+      casosConSanchezRamirezFiltrados: filteredCases.filter(c => c.provincia && c.provincia.toLowerCase().includes('sanchez')).length,
+      casosConFecha20250809Filtrados: filteredCases.filter(c => c.fecha && c.fecha.includes('2025-08-09')).length,
+      casosConFecha982025Filtrados: filteredCases.filter(c => c.fecha && c.fecha.includes('9/8/2025')).length,
+      casosSanchezConFecha9AugFiltrados: filteredCases.filter(c => 
+        c.provincia && c.provincia.toLowerCase().includes('sanchez') && 
+        c.fecha && c.fecha.includes('9/8/2025')
+      ).length,
+      operativosFiltrados: filteredCases.filter(c => c.tipoActividad && c.tipoActividad.toLowerCase().includes('operativo')).length,
+      patrullasFiltradas: filteredCases.filter(c => c.tipoActividad && c.tipoActividad.toLowerCase().includes('patrulla')).length
     });
     
     return filteredCases;
@@ -797,110 +1032,60 @@ class EnvironmentalAnalyticsService {
       .sort((a, b) => b.cantidad - a.cantidad);
   }
 
-  // CRUD Operations for cases
-  updateCase(updatedCase: EnvironmentalCase): EnvironmentalCase {
-    // Validate required fields
-    if (!updatedCase.numeroCaso) {
-      throw new Error('Número de caso es requerido');
-    }
-
-    // Update the case in the internal map
+  // CRUD operations for cases
+  updateCase(updatedCase: EnvironmentalCase): void {
+    console.log('🔄 Analytics: Updating case in memory:', updatedCase.numeroCaso);
     this.cases.set(updatedCase.numeroCaso, updatedCase);
-    
-    return updatedCase;
   }
 
   deleteCase(caseId: string): boolean {
-    if (!caseId) {
-      throw new Error('ID de caso es requerido');
-    }
-
+    console.log('🗑️ Analytics: Deleting case from memory:', caseId);
     return this.cases.delete(caseId);
   }
 
-  addCase(newCase: EnvironmentalCase): EnvironmentalCase {
-    // Validate required fields
-    if (!newCase.numeroCaso) {
-      throw new Error('Número de caso es requerido');
-    }
-
-    if (this.cases.has(newCase.numeroCaso)) {
-      throw new Error('Ya existe un caso con este número');
-    }
-
-    // Set default values for missing fields
-    const caseWithDefaults: EnvironmentalCase = {
-      ...newCase,
-      numeroCaso: newCase.numeroCaso,
-      fecha: newCase.fecha || '',
-      hora: newCase.hora || '',
-      provincia: newCase.provincia || '',
-      localidad: newCase.localidad || '',
-      region: newCase.region || '',
-      tipoActividad: newCase.tipoActividad || '',
-      areaTemática: newCase.areaTemática || '',
-      detenidos: newCase.detenidos || 0,
-      vehiculosDetenidos: newCase.vehiculosDetenidos || 0,
-      incautaciones: newCase.incautaciones || [],
-      notificados: newCase.notificados || 0,
-      procuraduria: newCase.procuraduria || false
-    };
-
-    this.cases.set(newCase.numeroCaso, caseWithDefaults);
-    return caseWithDefaults;
+  addCase(newCase: EnvironmentalCase): void {
+    console.log('➕ Analytics: Adding case to memory:', newCase.numeroCaso);
+    this.cases.set(newCase.numeroCaso, newCase);
   }
 
-  // Validation helpers
-  validateCase(envCase: Partial<EnvironmentalCase>): string[] {
+  validateCase(envCase: EnvironmentalCase): string[] {
     const errors: string[] = [];
-
+    
+    // Validaciones básicas
     if (!envCase.numeroCaso || envCase.numeroCaso.trim() === '') {
       errors.push('Número de caso es requerido');
     }
-
-    if (envCase.fecha && !this.isValidDate(envCase.fecha)) {
-      errors.push('Formato de fecha inválido');
+    
+    if (!envCase.fecha || envCase.fecha.trim() === '') {
+      errors.push('Fecha es requerida');
     }
-
-    if (envCase.detenidos !== undefined && envCase.detenidos < 0) {
-      errors.push('Número de detenidos no puede ser negativo');
+    
+    if (!envCase.provincia || envCase.provincia.trim() === '') {
+      errors.push('Provincia es requerida');
     }
-
-    if (envCase.vehiculosDetenidos !== undefined && envCase.vehiculosDetenidos < 0) {
-      errors.push('Número de vehículos no puede ser negativo');
+    
+    if (!envCase.localidad || envCase.localidad.trim() === '') {
+      errors.push('Localidad es requerida');
     }
-
-    if (envCase.notificados !== undefined && envCase.notificados < 0) {
-      errors.push('Número de notificados no puede ser negativo');
+    
+    // Validaciones de tipos de datos
+    if (typeof envCase.detenidos !== 'number' || envCase.detenidos < 0) {
+      errors.push('Detenidos debe ser un número válido mayor o igual a 0');
     }
-
+    
+    if (typeof envCase.vehiculosDetenidos !== 'number' || envCase.vehiculosDetenidos < 0) {
+      errors.push('Vehículos detenidos debe ser un número válido mayor o igual a 0');
+    }
+    
+    if (typeof envCase.notificados !== 'string') {
+      errors.push('Notificados debe ser texto válido');
+    }
+    
+    if (typeof envCase.procuraduria !== 'boolean') {
+      errors.push('Procuraduría debe ser verdadero o falso');
+    }
+    
     return errors;
-  }
-
-  private isValidDate(dateString: string): boolean {
-    // Check for common date formats
-    const dateFormats = [
-      /^\d{4}-\d{1,2}-\d{1,2}$/,  // YYYY-MM-DD
-      /^\d{1,2}\/\d{1,2}\/\d{4}$/,  // DD/MM/YYYY or MM/DD/YYYY
-      /^\d{1,2}-\d{1,2}-\d{4}$/,   // DD-MM-YYYY
-    ];
-
-    if (!dateFormats.some(format => format.test(dateString))) {
-      return false;
-    }
-
-    const date = new Date(dateString);
-    return !isNaN(date.getTime());
-  }
-
-  // Get all cases as array (useful for external access)
-  getAllCases(): EnvironmentalCase[] {
-    return Array.from(this.cases.values());
-  }
-
-  // Get case by ID
-  getCaseById(caseId: string): EnvironmentalCase | undefined {
-    return this.cases.get(caseId);
   }
 }
 

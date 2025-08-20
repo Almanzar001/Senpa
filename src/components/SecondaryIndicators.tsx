@@ -6,7 +6,8 @@ import {
   Schedule as ScheduleIcon,
   DateRange as DateIcon,
   TrendingUp as TrendingUpIcon,
-  Assessment as AssessmentIcon
+  Assessment as AssessmentIcon,
+  Language as RegionIcon
 } from '@mui/icons-material';
 import { type EnvironmentalCase, type EnvironmentalFilters } from '../services/environmentalAnalytics';
 
@@ -21,6 +22,7 @@ const SecondaryIndicators: React.FC<SecondaryIndicatorsProps> = ({ cases }) => {
       return {
         patrollasVsOperativos: { patrullas: 0, operativos: 0, totalActividades: 0 },
         provinciasActivas: [],
+        regionesActivas: [],
         horasFrecuentes: [],
         diasActivos: [],
         eficienciaOperativos: 0,
@@ -44,6 +46,19 @@ const SecondaryIndicators: React.FC<SecondaryIndicatorsProps> = ({ cases }) => {
       .map(([provincia, count]) => ({ provincia, operaciones: count }))
       .sort((a, b) => b.operaciones - a.operaciones)
       .slice(0, 3);
+
+    // 2.1. Regiones más activas
+    const regionCount = new Map<string, number>();
+    cases.forEach(c => {
+      if (c.region) {
+        regionCount.set(c.region, (regionCount.get(c.region) || 0) + 1);
+      }
+    });
+    const regionesActivas = Array.from(regionCount.entries())
+      .map(([region, count]) => ({ region, operaciones: count }))
+      .sort((a, b) => b.operaciones - a.operaciones)
+      .slice(0, 3);
+
 
     // 3. Horas más frecuentes
     const horaCount = new Map<string, number>();
@@ -106,6 +121,7 @@ const SecondaryIndicators: React.FC<SecondaryIndicatorsProps> = ({ cases }) => {
     return {
       patrollasVsOperativos: { patrullas, operativos, totalActividades },
       provinciasActivas,
+      regionesActivas,
       horasFrecuentes,
       diasActivos,
       eficienciaOperativos,
@@ -180,6 +196,46 @@ const SecondaryIndicators: React.FC<SecondaryIndicatorsProps> = ({ cases }) => {
               />
             </div>
           ))}
+        </div>
+      )
+    },
+    {
+      title: 'Regiones Más Activas',
+      icon: RegionIcon,
+      color: 'text-teal-600',
+      bgColor: 'bg-teal-50',
+      content: (
+        <div className="space-y-2">
+          {insights.regionesActivas.map((region, index) => (
+            <div key={region.region} className="flex justify-between items-center">
+              <div className="flex items-center">
+                <div className={`w-2 h-2 rounded-full mr-2 ${
+                  index === 0 ? 'bg-teal-500' : 
+                  index === 1 ? 'bg-teal-400' : 'bg-teal-300'
+                }`} />
+                <span className="text-sm font-medium">Región {region.region}</span>
+              </div>
+              <Chip 
+                label={region.operaciones}
+                size="small"
+                sx={{ 
+                  backgroundColor: 'rgb(20 184 166)', 
+                  color: 'white',
+                  '& .MuiChip-label': { fontSize: '0.75rem', fontWeight: 'bold' }
+                }}
+              />
+            </div>
+          ))}
+          {insights.regionesActivas.length === 0 && (
+            <div className="text-center py-4 text-gray-500 text-sm">
+              No hay datos de regiones disponibles
+            </div>
+          )}
+          <div className="pt-2 border-t border-teal-200">
+            <Typography variant="caption" className="text-teal-700">
+              🗺️ Cobertura territorial por región
+            </Typography>
+          </div>
         </div>
       )
     },

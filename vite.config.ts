@@ -4,6 +4,22 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 // https://vite.dev/config/
 export default defineConfig({
+  server: {
+    proxy: {
+      '/supabase': {
+        target: 'https://154.38.164.2:8443',
+        changeOrigin: true,
+        secure: false, // Permitir certificados auto-firmados
+        rewrite: (path) => path.replace(/^\/supabase/, ''),
+        configure: (proxy) => {
+          proxy.on('proxyReq', (proxyReq) => {
+            // Agregar headers necesarios
+            proxyReq.setHeader('Access-Control-Allow-Origin', '*');
+          });
+        }
+      }
+    }
+  },
   build: {
     rollupOptions: {
       output: {

@@ -82,12 +82,12 @@ const Login: React.FC<LoginProps> = ({ user, onAuthChange }) => {
 
   // Pantalla de login
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-50 to-primary-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-green-50 to-green-100 flex items-center justify-center p-4">
       <div className="max-w-md w-full">
         <div className="bg-white rounded-2xl shadow-xl p-8 animate-fade-in">
           {/* Logo y Header */}
           <div className="text-center mb-8">
-            <div className="w-20 h-20 bg-primary-600 rounded-xl flex items-center justify-center mx-auto mb-6 shadow-lg">
+            <div className="w-20 h-20 bg-green-600 rounded-xl flex items-center justify-center mx-auto mb-6 shadow-lg">
               <span className="text-white text-4xl">🌿</span>
             </div>
             <h1 className="text-2xl font-bold text-gray-900 mb-2">
@@ -120,7 +120,7 @@ const Login: React.FC<LoginProps> = ({ user, onAuthChange }) => {
           >
             {loading ? (
               <>
-                <div className="w-5 h-5 border-2 border-primary-600 border-t-transparent rounded-full animate-spin"></div>
+                <div className="w-5 h-5 border-2 border-green-600 border-t-transparent rounded-full animate-spin"></div>
                 <span className="text-gray-700">Iniciando sesión...</span>
               </>
             ) : (

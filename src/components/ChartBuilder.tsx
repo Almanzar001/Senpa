@@ -1119,7 +1119,11 @@ const ChartBuilder: React.FC<ChartBuilderProps> = () => {
               </Link>
               <Link to="/detainees-map" className="btn-sm btn-ghost min-w-0" title="Mapa de Detenidos">
                 <span className="text-base">👥</span>
-                <span className="hidden lg:inline ml-2">Mapa</span>
+                <span className="hidden lg:inline ml-2">Detenidos</span>
+              </Link>
+              <Link to="/vehicles-map" className="btn-sm btn-ghost min-w-0" title="Mapa de Vehículos">
+                <span className="text-base">🚗</span>
+                <span className="hidden lg:inline ml-2">Vehículos</span>
               </Link>
             </div>
           </div>

@@ -10,7 +10,7 @@ export interface NotaInformativa {
   region: string;
   tipoActividad: string;
   areaTemática: string;
-  notificados: number;
+  notificados: string; // Nombres de las personas notificadas
   procuraduria: boolean;
   resultado?: string;
   observaciones?: string;
@@ -29,10 +29,6 @@ export interface Detenido {
   localidad: string;
   region: string;
   nombre: string;
-  apellido: string;
-  cedula: string;
-  edad: number;
-  nacionalidad: string;
   motivoDetencion: string;
   estadoProceso: string;
   observaciones?: string;
@@ -41,20 +37,12 @@ export interface Detenido {
 export interface Vehiculo {
   id: string;
   numeroCaso: string;
-  fecha: string;
-  hora: string;
-  provincia: string;
-  localidad: string;
-  region: string;
-  tipoVehiculo: string;
+  tipo: string;
   marca: string;
-  modelo: string;
-  año: number;
-  placa: string;
   color: string;
-  propietario: string;
-  estado: string;
-  observaciones?: string;
+  detalle: string;
+  provinciaMunicipio: string;
+  fecha: string;
 }
 
 export interface Incautacion {
@@ -97,15 +85,15 @@ export const TABLE_METADATA: Record<TableType, TableMetaData> = {
     tableName: 'detenidos',
     displayName: 'Detenidos',
     primaryKey: 'id',
-    editableFields: ['fecha', 'hora', 'provincia', 'localidad', 'region', 'nombre', 'apellido', 'cedula', 'edad', 'nacionalidad', 'motivoDetencion', 'estadoProceso', 'observaciones'],
-    requiredFields: ['numeroCaso', 'fecha', 'nombre', 'apellido', 'cedula']
+    editableFields: ['fecha', 'hora', 'provincia', 'localidad', 'region', 'nombre', 'motivoDetencion', 'estadoProceso', 'observaciones'],
+    requiredFields: ['numeroCaso', 'fecha', 'nombre']
   },
   vehiculos: {
     tableName: 'vehiculos',
     displayName: 'Vehículos',
     primaryKey: 'id',
-    editableFields: ['fecha', 'hora', 'provincia', 'localidad', 'region', 'tipoVehiculo', 'marca', 'modelo', 'año', 'placa', 'color', 'propietario', 'estado', 'observaciones'],
-    requiredFields: ['numeroCaso', 'fecha', 'tipoVehiculo', 'placa']
+    editableFields: ['numeroCaso', 'tipo', 'marca', 'color', 'detalle', 'provinciaMunicipio', 'fecha'],
+    requiredFields: ['numeroCaso', 'tipo', 'marca', 'provinciaMunicipio', 'fecha']
   },
   incautaciones: {
     tableName: 'incautaciones',

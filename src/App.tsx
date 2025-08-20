@@ -1,10 +1,18 @@
 import React, { Suspense } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider } from './contexts/AuthContext';
 import { DataProvider } from './contexts/DataContext';
+import SimpleDashboard from './components/SimpleDashboard';
+import LoginForm from './components/auth/LoginForm';
+import SimpleProtectedRoute from './components/auth/SimpleProtectedRoute';
+import UserManagement from './components/admin/UserManagement';
 
 const EnvironmentalDashboard = React.lazy(() => import('./components/EnvironmentalDashboard'));
+const ExecutiveDashboard = React.lazy(() => import('./components/ExecutiveDashboard'));
 const DetaineesMap = React.lazy(() => import('./components/DetaineesMap'));
+const VehiclesMap = React.lazy(() => import('./components/VehiclesMap'));
 const OperationsPage = React.lazy(() => import('./components/OperationsPage'));
+const NotificadosPage = React.lazy(() => import('./components/NotificadosPage'));
 const ChartBuilder = React.lazy(() => import('./components/ChartBuilder'));
 
 const LoadingSpinner = () => (
@@ -15,20 +23,101 @@ const LoadingSpinner = () => (
 
 function App() {
   return (
-    <DataProvider>
-      <Router>
-        <div className="min-h-screen bg-neutral-50 font-sans antialiased">
-          <Suspense fallback={<LoadingSpinner />}>
-            <Routes>
-              <Route path="/" element={<EnvironmentalDashboard />} />
-              <Route path="/operations" element={<OperationsPage />} />
-              <Route path="/detainees-map" element={<DetaineesMap />} />
-              <Route path="/chart-builder" element={<ChartBuilder />} />
-            </Routes>
-          </Suspense>
-        </div>
-      </Router>
-    </DataProvider>
+    <AuthProvider>
+      <DataProvider>
+        <Router>
+          <div className="min-h-screen bg-neutral-50 font-sans antialiased">
+            <Suspense fallback={<LoadingSpinner />}>
+              <Routes>
+                <Route path="/" element={<ExecutiveDashboard />} />
+                <Route path="/dashboard" element={<EnvironmentalDashboard />} />
+                <Route path="/executive" element={<ExecutiveDashboard />} />
+                <Route path="/simple" element={<SimpleDashboard />} />
+                <Route path="/login" element={<LoginForm />} />
+                
+                {/* Rutas del dashboard */}
+                <Route 
+                  path="/detainees-map" 
+                  element={
+                    <SimpleProtectedRoute requiredPermission="read">
+                      <DetaineesMap />
+                    </SimpleProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/vehicles-map" 
+                  element={
+                    <SimpleProtectedRoute requiredPermission="read">
+                      <VehiclesMap />
+                    </SimpleProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/operations" 
+                  element={
+                    <SimpleProtectedRoute requiredPermission="read">
+                      <OperationsPage />
+                    </SimpleProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/operations/detenidos" 
+                  element={
+                    <SimpleProtectedRoute requiredPermission="read">
+                      <OperationsPage />
+                    </SimpleProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/operations/vehiculos" 
+                  element={
+                    <SimpleProtectedRoute requiredPermission="read">
+                      <OperationsPage />
+                    </SimpleProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/operations/incautaciones" 
+                  element={
+                    <SimpleProtectedRoute requiredPermission="read">
+                      <OperationsPage />
+                    </SimpleProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/operations/notificados" 
+                  element={
+                    <SimpleProtectedRoute requiredPermission="read">
+                      <NotificadosPage />
+                    </SimpleProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/chart-builder" 
+                  element={
+                    <SimpleProtectedRoute requiredPermission="read">
+                      <ChartBuilder />
+                    </SimpleProtectedRoute>
+                  } 
+                />
+                
+                {/* Rutas de administración */}
+                <Route 
+                  path="/admin/users" 
+                  element={
+                    <SimpleProtectedRoute adminOnly>
+                      <UserManagement />
+                    </SimpleProtectedRoute>
+                  } 
+                />
+                
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </Suspense>
+          </div>
+        </Router>
+      </DataProvider>
+    </AuthProvider>
   );
 }
 

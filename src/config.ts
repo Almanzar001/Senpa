@@ -1,7 +1,9 @@
+import { createClient } from '@supabase/supabase-js';
+
 // Configuración del Dashboard SENPA
 export const CONFIG = {
-  // Supabase Configuration
-  SUPABASE_URL: 'https://nnsupabasenn.coman2uniformes.com',
+  // Supabase Configuration - Autoalojado
+  SUPABASE_URL: 'http://154.38.164.2:8003',
   SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyAgCiAgICAicm9sZSI6ICJhbm9uIiwKICAgICJpc3MiOiAic3VwYWJhc2UtZGVtbyIsCiAgICAiaWF0IjogMTY0MTc2OTIwMCwKICAgICJleHAiOiAxNzk5NTM1NjAwCn0.dc_X5iR_VP_qT0zsiyj_I_OZ2T9FtRU2BBNWN8Bu4GE',
   
   // Lista de tablas de Supabase
@@ -40,3 +42,26 @@ export const getCurrentDateString = (): string => {
     day: 'numeric'
   });
 };
+
+// Cliente de Supabase para instalación auto-alojada
+export const supabase = createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY, {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: false,
+    flowType: 'implicit'
+  },
+  db: {
+    schema: 'public'
+  },
+  global: {
+    headers: {
+      'X-Client-Info': 'dashboard-senpa'
+    }
+  },
+  realtime: {
+    params: {
+      eventsPerSecond: 2
+    }
+  }
+});

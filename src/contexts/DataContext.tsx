@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
-import SupabaseService, { type SheetData } from '../services/supabase';
+import SupabaseService, { type SheetData, supabase } from '../services/supabase';
 import EnvironmentalAnalyticsService, { type EnvironmentalCase, type EnvironmentalFilters } from '../services/environmentalAnalytics';
 import { CONFIG } from '../config';
 
@@ -82,12 +82,116 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!sheets || sheets.length === 0) {
       return [];
     }
-    return analyticsService.analyzeSheetsData(sheets);
+    
+    // If analyticsService has cases, use them (they include updates)
+    // Otherwise, analyze sheets data (initial load)
+    const existingCases = Array.from(analyticsService.cases.values());
+    if (existingCases.length > 0) {
+      return existingCases;
+    } else {
+      return analyticsService.analyzeSheetsData(sheets);
+    }
   }, [sheets, analyticsService]);
 
   const filteredCases = useMemo(() => {
     return analyticsService.applyFilters(cases, filters);
   }, [cases, filters, analyticsService]);
+
+  // Helper function to update case in database
+  const updateCaseInDatabase = useCallback(async (updatedCase: EnvironmentalCase) => {
+    try {
+      const supabaseService = new SupabaseService();
+      
+      // Map the EnvironmentalCase back to the original database record format
+      // We need to determine which table this case belongs to and update accordingly
+      const caseData = {
+        numerocaso: updatedCase.numeroCaso,
+        fecha: updatedCase.fecha,
+        hora: updatedCase.hora,
+        provinciamunicipio: updatedCase.provincia,
+        localidad: updatedCase.localidad,
+        region: updatedCase.region,
+        tipoactividad: updatedCase.tipoActividad,
+        areatematica: updatedCase.areaTemática,
+        notificados: String(updatedCase.notificados || ''),
+        procuraduria: updatedCase.procuraduria ? 'SI' : 'NO',
+        resultado: updatedCase.resultado
+      };
+
+      // Update in the notas_informativas table (main table for cases)
+      // We use numero_caso as the identifier since that's the primary key
+      const { data: existing } = await supabase
+        .from('notas_informativas')
+        .select('id')
+        .eq('numerocaso', updatedCase.numeroCaso)
+        .single();
+
+      if (existing?.id) {
+        await supabaseService.updateData('notas_informativas', existing.id, caseData);
+        console.log('✅ Case updated in database:', updatedCase.numeroCaso);
+      } else {
+        console.warn('⚠️ Case not found in database for update:', updatedCase.numeroCaso);
+      }
+      
+    } catch (error: any) {
+      console.error('❌ Error updating case in database:', error);
+      throw new Error(`Error al actualizar en base de datos: ${error.message}`);
+    }
+  }, []);
+
+  // Helper function to delete case from database
+  const deleteCaseFromDatabase = useCallback(async (caseId: string) => {
+    try {
+      const supabaseService = new SupabaseService();
+      
+      // Find the case in the notas_informativas table
+      const { data: existing } = await supabase
+        .from('notas_informativas')
+        .select('id')
+        .eq('numerocaso', caseId)
+        .single();
+
+      if (existing?.id) {
+        await supabaseService.deleteData('notas_informativas', existing.id);
+        console.log('✅ Case deleted from database:', caseId);
+      } else {
+        console.warn('⚠️ Case not found in database for deletion:', caseId);
+      }
+      
+    } catch (error: any) {
+      console.error('❌ Error deleting case from database:', error);
+      throw new Error(`Error al eliminar de base de datos: ${error.message}`);
+    }
+  }, []);
+
+  // Helper function to add case to database
+  const addCaseToDatabase = useCallback(async (newCase: EnvironmentalCase) => {
+    try {
+      const supabaseService = new SupabaseService();
+      
+      // Map the EnvironmentalCase to database record format
+      const caseData = {
+        numerocaso: newCase.numeroCaso,
+        fecha: newCase.fecha,
+        hora: newCase.hora,
+        provinciamunicipio: newCase.provincia,
+        localidad: newCase.localidad,
+        region: newCase.region,
+        tipoactividad: newCase.tipoActividad,
+        areatematica: newCase.areaTemática,
+        notificados: String(newCase.notificados || ''),
+        procuraduria: newCase.procuraduria ? 'SI' : 'NO',
+        resultado: newCase.resultado
+      };
+
+      await supabaseService.insertData('notas_informativas', caseData);
+      console.log('✅ Case added to database:', newCase.numeroCaso);
+      
+    } catch (error: any) {
+      console.error('❌ Error adding case to database:', error);
+      throw new Error(`Error al agregar a base de datos: ${error.message}`);
+    }
+  }, []);
 
   // CRUD operations
   const updateCase = useCallback(async (updatedCase: EnvironmentalCase) => {
@@ -97,36 +201,48 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error(`Errores de validación: ${validationErrors.join(', ')}`);
       }
 
-      // Update in analytics service
+      // Update in analytics service (in-memory)
       analyticsService.updateCase(updatedCase);
       
-      // Force re-render by updating the sheets state
-      // In a real app, you'd also update the backend here
-      setSheets(prevSheets => [...prevSheets]);
+      // Also update in the database (persistent storage)
+      await updateCaseInDatabase(updatedCase);
+      
+      // Force re-render by updating the sheets state with a timestamp
+      // This ensures React detects the change and re-calculates computed values
+      setSheets(prevSheets => prevSheets.map(sheet => ({
+        ...sheet,
+        lastUpdated: Date.now()
+      })));
       
     } catch (err: any) {
       console.error('Error updating case:', err);
       throw err;
     }
-  }, [analyticsService]);
+  }, [analyticsService, updateCaseInDatabase]);
 
   const deleteCase = useCallback(async (caseId: string) => {
     try {
-      // Delete from analytics service
+      // Delete from analytics service (in-memory)
       const deleted = analyticsService.deleteCase(caseId);
       if (!deleted) {
         throw new Error('Caso no encontrado');
       }
       
-      // Force re-render by updating the sheets state
-      // In a real app, you'd also delete from the backend here
-      setSheets(prevSheets => [...prevSheets]);
+      // Also delete from database
+      await deleteCaseFromDatabase(caseId);
+      
+      // Force re-render by updating the sheets state with a timestamp
+      // This ensures React detects the change and re-calculates computed values
+      setSheets(prevSheets => prevSheets.map(sheet => ({
+        ...sheet,
+        lastUpdated: Date.now()
+      })));
       
     } catch (err: any) {
       console.error('Error deleting case:', err);
       throw err;
     }
-  }, [analyticsService]);
+  }, [analyticsService, deleteCaseFromDatabase]);
 
   const addCase = useCallback(async (newCase: EnvironmentalCase) => {
     try {
@@ -135,18 +251,24 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error(`Errores de validación: ${validationErrors.join(', ')}`);
       }
 
-      // Add to analytics service
+      // Add to analytics service (in-memory)
       analyticsService.addCase(newCase);
       
-      // Force re-render by updating the sheets state
-      // In a real app, you'd also save to the backend here
-      setSheets(prevSheets => [...prevSheets]);
+      // Also add to database
+      await addCaseToDatabase(newCase);
+      
+      // Force re-render by updating the sheets state with a timestamp
+      // This ensures React detects the change and re-calculates computed values
+      setSheets(prevSheets => prevSheets.map(sheet => ({
+        ...sheet,
+        lastUpdated: Date.now()
+      })));
       
     } catch (err: any) {
       console.error('Error adding case:', err);
       throw err;
     }
-  }, [analyticsService]);
+  }, [analyticsService, addCaseToDatabase]);
 
   const value = {
     cases,

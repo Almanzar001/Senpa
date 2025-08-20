@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { GoogleMap, useJsApiLoader, Marker, InfoWindow } from '@react-google-maps/api';
 import { useData } from '../contexts/DataContext';
 import { type EnvironmentalCase } from '../services/environmentalAnalytics';
@@ -17,13 +17,13 @@ const center = {
 
 const libraries: "visualization"[] = ["visualization"];
 
-// Función para crear el icono personalizado para los detenidos
+// Función para crear el icono personalizado para los detenidos SENPA
 const createDetaineeIcon = () => {
   if (typeof google !== 'undefined' && google.maps) {
     return {
-      url: `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" height="48" viewBox="0 0 24 24" width="48"><path fill="%23C70039" d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>`,
-      scaledSize: new google.maps.Size(40, 40),
-      anchor: new google.maps.Point(20, 40),
+      url: `${window.location.origin}/senpa-detainee-icon.png`,
+      scaledSize: new google.maps.Size(35, 35),
+      anchor: new google.maps.Point(17, 17),
     };
   }
   return undefined;
@@ -32,6 +32,11 @@ const createDetaineeIcon = () => {
 const DetaineesMap: React.FC = () => {
   const { filteredCases, loading, error } = useData();
   const [selectedCase, setSelectedCase] = useState<EnvironmentalCase | null>(null);
+  const [searchParams] = useSearchParams();
+  
+  // Determine return destination based on "from" query parameter
+  const returnTo = searchParams.get('from') === 'executive' ? '/' : '/dashboard';
+  const returnLabel = searchParams.get('from') === 'executive' ? 'Volver al Dashboard Ejecutivo' : 'Volver al Dashboard';
 
   const { isLoaded, loadError } = useJsApiLoader({
     id: 'google-map-script',
@@ -100,10 +105,10 @@ const DetaineesMap: React.FC = () => {
         )}
       </GoogleMap>
       <Link
-        to="/"
+        to={returnTo}
         className="absolute top-4 left-4 z-[1000] bg-white p-2 rounded-md shadow-lg text-blue-600 hover:bg-gray-100"
       >
-        Volver al Dashboard
+        {returnLabel}
       </Link>
       <div className="absolute top-4 right-4 z-[1000] bg-white p-3 rounded-md shadow-lg text-sm">
         <h3 className="font-bold mb-2">Resumen de Detenidos</h3>

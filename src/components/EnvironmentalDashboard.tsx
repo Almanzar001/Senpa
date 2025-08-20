@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useData } from '../contexts/DataContext';
+import { useAuth } from '../contexts/AuthContext';
+import { usePermissions } from '../hooks/usePermissions';
 import EnvironmentalMetrics from './EnvironmentalMetrics';
 import EnvironmentalFiltersComponent from './EnvironmentalFilters';
 import EnvironmentalCharts from './EnvironmentalCharts';
@@ -21,6 +23,19 @@ const EnvironmentalDashboard: React.FC = () => {
     updateCase,
     deleteCase
   } = useData();
+  
+  const { user, profile, logout } = useAuth();
+  const permissions = usePermissions();
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate('/login');
+    } catch (error) {
+      console.error('Error en logout:', error);
+    }
+  };
 
   const [activeTab, setActiveTab] = useState(0);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
@@ -146,7 +161,39 @@ const EnvironmentalDashboard: React.FC = () => {
     <div className="dashboard-container">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {/* Header Rediseñado */}
-        <header className="dashboard-header p-6 mb-8 animate-fade-in">
+        <header className="dashboard-header p-6 mb-8 animate-fade-in relative">
+          {/* Botones de admin y logout en esquina superior derecha */}
+          <div className="absolute top-4 left-4">
+            <Link 
+              to="/"
+              className="px-3 py-1 bg-slate-500 text-white text-sm rounded hover:bg-slate-600 transition-colors"
+            >
+              📊 Dashboard Ejecutivo
+            </Link>
+          </div>
+
+          <div className="absolute top-4 right-4">
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-gray-600">
+                {user?.email} ({profile?.role_name})
+              </span>
+              {profile?.role_name === 'admin' && (
+                <Link 
+                  to="/admin/users"
+                  className="px-3 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600 transition-colors"
+                >
+                  👥 Usuarios
+                </Link>
+              )}
+              <button
+                onClick={handleLogout}
+                className="px-3 py-1 bg-red-500 text-white text-sm rounded hover:bg-red-600 transition-colors"
+              >
+                Cerrar Sesión
+              </button>
+            </div>
+          </div>
+          
           <div className="flex flex-col items-center text-center gap-4">
             {/* Branding y título */}
             <div className="flex flex-col items-center gap-4">
@@ -257,15 +304,26 @@ const EnvironmentalDashboard: React.FC = () => {
                   <span className="hidden lg:inline ml-2">Configuración</span>
                 </button>
                 
-                <Link to="/detainees-map" className="btn-sm btn-secondary min-w-0" title="Ver Mapa de Calor de Detenidos">
-                  <span className="text-base">👥</span>
-                  <span className="hidden lg:inline ml-2">Detenidos</span>
-                </Link>
+                {permissions.canViewRecords && (
+                  <Link to="/detainees-map" className="btn-sm btn-secondary min-w-0" title="Ver Mapa de Calor de Detenidos">
+                    <span className="text-base">👥</span>
+                    <span className="hidden lg:inline ml-2">Detenidos</span>
+                  </Link>
+                )}
 
-                <Link to="/chart-builder" className="btn-sm btn-primary min-w-0" title="Constructor de Gráficos">
-                  <span className="text-base">📊</span>
-                  <span className="hidden lg:inline ml-2">Gráficos</span>
-                </Link>
+                {permissions.canViewRecords && (
+                  <Link to="/vehicles-map" className="btn-sm btn-secondary min-w-0" title="Ver Mapa de Vehículos Detenidos">
+                    <span className="text-base">🚗</span>
+                    <span className="hidden lg:inline ml-2">Vehículos</span>
+                  </Link>
+                )}
+
+                {permissions.canViewRecords && (
+                  <Link to="/chart-builder" className="btn-sm btn-primary min-w-0" title="Constructor de Gráficos">
+                    <span className="text-base">📊</span>
+                    <span className="hidden lg:inline ml-2">Gráficos</span>
+                  </Link>
+                )}
               </div>
             </div>
           </div>

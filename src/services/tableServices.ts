@@ -46,17 +46,23 @@ abstract class BaseTableService<T extends { id: string; numeroCaso: string }> {
 
   // Update item
   update(updatedItem: T): T {
+    console.log(`🟦 ${this.tableType}Service - update iniciado`, updatedItem);
+    
     if (!this.items.has(updatedItem.id)) {
+      console.error(`🟦 ${this.tableType}Service - El registro no existe:`, updatedItem.id);
       throw new Error('El registro no existe');
     }
 
     // Validate required fields
     const errors = this.validate(updatedItem);
+    console.log(`🟦 ${this.tableType}Service - Errores de validación:`, errors);
+    
     if (errors.length > 0) {
       throw new Error(`Errores de validación: ${errors.join(', ')}`);
     }
 
     this.items.set(updatedItem.id, updatedItem);
+    console.log(`🟦 ${this.tableType}Service - Item actualizado exitosamente`, updatedItem);
     return updatedItem;
   }
 
@@ -127,10 +133,8 @@ export class NotasInformativasService extends BaseTableService<NotaInformativa> 
       errors.push('Formato de fecha inválido');
     }
 
-    // Validate notificados
-    if (item.notificados !== undefined && item.notificados < 0) {
-      errors.push('Número de notificados no puede ser negativo');
-    }
+    // Validate notificados (now a string)
+    // No specific validation needed for string field
 
     return errors;
   }
@@ -147,9 +151,9 @@ export class NotasInformativasService extends BaseTableService<NotaInformativa> 
     return this.getAll().filter(nota => nota.procuraduria);
   }
 
-  // Get notificados count
+  // Get notificados count (count non-empty names)
   getTotalNotificados(): number {
-    return this.getAll().reduce((total, nota) => total + nota.notificados, 0);
+    return this.getAll().filter(nota => nota.notificados && nota.notificados.trim() !== '').length;
   }
 }
 
@@ -221,16 +225,8 @@ export class VehiculosService extends BaseTableService<Vehiculo> {
       errors.push('Formato de fecha inválido');
     }
 
-    // Validate year
-    const currentYear = new Date().getFullYear();
-    if (item.año !== undefined && (item.año < 1900 || item.año > currentYear + 1)) {
-      errors.push(`Año debe estar entre 1900 y ${currentYear + 1}`);
-    }
-
-    // Validate placa format (basic check)
-    if (item.placa && item.placa.length < 3) {
-      errors.push('Placa debe tener al menos 3 caracteres');
-    }
+    // Basic validation for simplified vehicle structure
+    // No specific field validations needed for current simplified structure
 
     return errors;
   }

@@ -59,7 +59,61 @@ const EnvironmentalCharts: React.FC<EnvironmentalChartsProps> = ({ cases, filter
     return analyticsService.getVehiclesByType(filteredCases);
   }, [filteredCases, analyticsService]);
 
-  // E. Análisis de ubicaciones
+  // E. Datos combinados por región
+  const combinedDataByRegion = useMemo(() => {
+    const regionData = new Map<string, {
+      operativos: number;
+      patrullas: number;
+      detenidos: number;
+      vehiculos: number;
+    }>();
+
+    filteredCases.forEach(envCase => {
+      if (envCase.region) {
+        const region = envCase.region;
+        const current = regionData.get(region) || {
+          operativos: 0,
+          patrullas: 0,
+          detenidos: 0,
+          vehiculos: 0
+        };
+
+        // Contar operativos
+        if (envCase.tipoActividad && envCase.tipoActividad.toLowerCase().includes('operativo')) {
+          current.operativos++;
+        }
+
+        // Contar patrullas
+        if (envCase.tipoActividad && envCase.tipoActividad.toLowerCase().includes('patrulla')) {
+          current.patrullas++;
+        }
+
+        // Contar detenidos (si hay información de detenidos > 0)
+        if (envCase.detenidos && envCase.detenidos > 0) {
+          current.detenidos += envCase.detenidos;
+        }
+
+        // Contar vehículos (si hay información de vehículos > 0)
+        if (envCase.vehiculosDetenidos && envCase.vehiculosDetenidos > 0) {
+          current.vehiculos += envCase.vehiculosDetenidos;
+        }
+
+        regionData.set(region, current);
+      }
+    });
+
+    return Array.from(regionData.entries())
+      .map(([region, data]) => ({
+        region,
+        operativos: data.operativos,
+        patrullas: data.patrullas,
+        detenidos: data.detenidos,
+        vehiculos: data.vehiculos
+      }))
+      .sort((a, b) => (b.operativos + b.patrullas + b.detenidos + b.vehiculos) - (a.operativos + a.patrullas + a.detenidos + a.vehiculos));
+  }, [filteredCases]);
+
+  // F. Análisis de ubicaciones
   const locationAnalysis = useMemo(() => {
     const locationCount = new Map<string, number>();
     
@@ -72,6 +126,23 @@ const EnvironmentalCharts: React.FC<EnvironmentalChartsProps> = ({ cases, filter
 
     return Array.from(locationCount.entries())
       .map(([location, count]) => ({ location, operativos: count }))
+      .sort((a, b) => b.operativos - a.operativos)
+      .slice(0, 10);
+  }, [filteredCases]);
+
+  // G. Análisis de regiones
+  const regionAnalysis = useMemo(() => {
+    const regionCount = new Map<string, number>();
+    
+    filteredCases.forEach(envCase => {
+      if (envCase.region) {
+        const region = envCase.region;
+        regionCount.set(region, (regionCount.get(region) || 0) + 1);
+      }
+    });
+
+    return Array.from(regionCount.entries())
+      .map(([region, count]) => ({ region: `Región ${region}`, operativos: count }))
       .sort((a, b) => b.operativos - a.operativos)
       .slice(0, 10);
   }, [filteredCases]);
@@ -94,8 +165,10 @@ const EnvironmentalCharts: React.FC<EnvironmentalChartsProps> = ({ cases, filter
 
   return (
     <div className="space-y-8">
-      {/* A. Componente 3D de Casos por Semana */}
-      <WeeklyCases3D cases={filteredCases} filters={filters} />
+      {/* A. Componente 3D de Casos por Semana - Solo mostrar si no es vista ejecutiva */}
+      {!filters?.isExecutiveView && (
+        <WeeklyCases3D cases={filteredCases} filters={filters} />
+      )}
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
         {/* B. Incautaciones por Tipo */}
@@ -330,6 +403,74 @@ const EnvironmentalCharts: React.FC<EnvironmentalChartsProps> = ({ cases, filter
                 <div className="text-center text-neutral-500">
                   <span className="text-4xl mb-4 block">📍</span>
                   <p className="text-lg font-medium">No hay datos de ubicaciones</p>
+                  <p className="text-sm">Los datos se mostrarán cuando estén disponibles</p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Nueva sección: Regiones Más Activas */}
+      <div className="grid grid-cols-1 xl:grid-cols-1 gap-8">
+        <div className="card-environmental p-6">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-12 h-12 bg-teal-100 rounded-xl flex items-center justify-center">
+              <span className="text-2xl">🗺️</span>
+            </div>
+            <div>
+              <h3 className="text-xl font-bold text-neutral-800">
+                Regiones Más Activas
+              </h3>
+              <p className="text-neutral-600">Por número de operativos</p>
+            </div>
+          </div>
+          
+          <div className="h-80">
+            {regionAnalysis && regionAnalysis.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={regionAnalysis}>
+                  <defs>
+                    <linearGradient id="tealGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#14b8a6" stopOpacity={0.8} />
+                      <stop offset="100%" stopColor="#20b2aa" stopOpacity={0.9} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" strokeOpacity={0.5} />
+                  <XAxis 
+                    dataKey="region" 
+                    stroke="#6b7280"
+                    fontSize={12}
+                    angle={-45}
+                    textAnchor="end"
+                    height={80}
+                  />
+                  <YAxis stroke="#6b7280" fontSize={12} />
+                  <Tooltip />
+                  <Bar 
+                    dataKey="operativos" 
+                    fill="url(#tealGradient)"
+                    radius={[8, 8, 0, 0]}
+                    label={({ value, x, y, width }) => (
+                      <text 
+                        x={x + width / 2} 
+                        y={y - 5} 
+                        textAnchor="middle" 
+                        fontSize={14} 
+                        fontWeight="bold" 
+                        fill="#374151"
+                      >
+                        {value}
+                      </text>
+                    )}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-full">
+                <div className="text-center text-neutral-500">
+                  <span className="text-4xl mb-4 block">🗺️</span>
+                  <p className="text-lg font-medium">No hay datos de regiones</p>
                   <p className="text-sm">Los datos se mostrarán cuando estén disponibles</p>
                 </div>
               </div>
