@@ -5,6 +5,7 @@ import { DataProvider } from './contexts/DataContext';
 import SimpleDashboard from './components/SimpleDashboard';
 import LoginForm from './components/auth/LoginForm';
 import SimpleProtectedRoute from './components/auth/SimpleProtectedRoute';
+import ProtectedHome from './components/auth/ProtectedHome';
 import SimpleUserManagement from './components/SimpleUserManagement';
 
 const EnvironmentalDashboard = React.lazy(() => import('./components/EnvironmentalDashboard'));
@@ -29,10 +30,22 @@ function App() {
           <div className="min-h-screen bg-neutral-50 font-sans antialiased">
             <Suspense fallback={<LoadingSpinner />}>
               <Routes>
-                <Route path="/" element={<ExecutiveDashboard />} />
-                <Route path="/dashboard" element={<EnvironmentalDashboard />} />
-                <Route path="/executive" element={<ExecutiveDashboard />} />
-                <Route path="/simple" element={<SimpleDashboard />} />
+                <Route path="/" element={<ProtectedHome />} />
+                <Route path="/dashboard" element={
+                  <SimpleProtectedRoute requiredPermission="read">
+                    <EnvironmentalDashboard />
+                  </SimpleProtectedRoute>
+                } />
+                <Route path="/executive" element={
+                  <SimpleProtectedRoute requiredPermission="read">
+                    <ExecutiveDashboard />
+                  </SimpleProtectedRoute>
+                } />
+                <Route path="/simple" element={
+                  <SimpleProtectedRoute requiredPermission="read">
+                    <SimpleDashboard />
+                  </SimpleProtectedRoute>
+                } />
                 <Route path="/login" element={<LoginForm />} />
                 
                 {/* Rutas del dashboard */}
