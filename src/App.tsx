@@ -2,12 +2,6 @@ import React, { Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { DataProvider } from './contexts/DataContext';
-
-// Debug: Verificar variables de entorno
-console.log('🟦 App iniciando - Variables de entorno:');
-console.log('VITE_SUPABASE_URL:', import.meta.env.VITE_SUPABASE_URL);
-console.log('VITE_SUPABASE_ANON_KEY:', import.meta.env.VITE_SUPABASE_ANON_KEY ? 'PRESENTE' : 'FALTANTE');
-console.log('VITE_GOOGLE_MAPS_API_KEY:', import.meta.env.VITE_GOOGLE_MAPS_API_KEY ? 'PRESENTE' : 'FALTANTE');
 import SimpleDashboard from './components/SimpleDashboard';
 import LoginForm from './components/auth/LoginForm';
 import SimpleProtectedRoute from './components/auth/SimpleProtectedRoute';

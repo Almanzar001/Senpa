@@ -43,10 +43,5 @@ export const getCurrentDateString = (): string => {
   });
 };
 
-// Debug: Verificar configuración antes de crear cliente
-console.log('🟦 Creating Supabase client with:');
-console.log('URL:', CONFIG.SUPABASE_URL);
-console.log('Key length:', CONFIG.SUPABASE_ANON_KEY?.length || 0);
-
 // Cliente de Supabase simplificado para producción
 export const supabase = createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);

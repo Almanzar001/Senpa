@@ -3,11 +3,6 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "installCommand": "npm install",
-  "env": {
-    "VITE_SUPABASE_URL": "https://nnsupabasenn.coman2uniformes.com",
-    "VITE_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyAgCiAgICAicm9sZSI6ICJhbm9uIiwKICAgICJpc3MiOiAic3VwYWJhc2UtZGVtbyIsCiAgICAiaWF0IjogMTY0MTc2OTIwMCwKICAgICJleHAiOiAxNzk5NTM1NjAwCn0.dc_X5iR_VP_qT0zsiyj_I_OZ2T9FtRU2BBNWN8Bu4GE",
-    "VITE_GOOGLE_MAPS_API_KEY": "AIzaSyC9ARVP6PAi1CNIiFuP5vof9FImS75Wq-4"
-  },
   "headers": [
     {
       "source": "/sw.js",

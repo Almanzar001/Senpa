@@ -1,7 +1,6 @@
 import { CONFIG } from '../config'
 // Importar el cliente único de config.ts para evitar múltiples instancias
 import { supabase } from '../config'
-import { fallbackData, isProductionFallback } from './fallbackData'
 
 // Re-exportar el cliente único
 export { supabase }
@@ -19,10 +18,6 @@ class SupabaseService {
   
   async getTableData(tableName: string): Promise<SheetData> {
     try {
-      console.log(`🟦 Fetching table ${tableName} from ${CONFIG.SUPABASE_URL}`);
-      console.log('🟦 Environment:', typeof window !== 'undefined' ? 'browser' : 'server');
-      console.log('🟦 Production check:', import.meta.env.PROD);
-      
       const { data, error } = await supabase
         .from(tableName)
         .select('*');
