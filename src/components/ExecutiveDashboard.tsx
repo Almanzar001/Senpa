@@ -15,9 +15,12 @@ import {
   CalendarMonth as CalendarIcon,
   Map as MapIcon,
   Person as PersonIcon,
-  CarRental as CarIcon
+  CarRental as CarIcon,
+  ManageAccounts as ManageAccountsIcon
 } from '@mui/icons-material';
 import { useData } from '../contexts/DataContext';
+import { useAuth } from '../contexts/AuthContext';
+import { simpleAuth } from '../services/simpleAuth';
 import EnvironmentalCharts from './EnvironmentalCharts';
 import SecondaryIndicators from './SecondaryIndicators';
 
@@ -25,6 +28,7 @@ type DateFilter = 'today' | 'yesterday' | 'thisMonth' | 'all';
 
 const ExecutiveDashboard: React.FC = () => {
   const { cases, filteredCases, loading, error, filters, setFilters } = useData();
+  const { user } = useAuth();
   const [selectedDateFilter, setSelectedDateFilter] = useState<DateFilter>('all');
 
   // Function to get date ranges
@@ -440,6 +444,7 @@ const ExecutiveDashboard: React.FC = () => {
                 </IconButton>
               </Link>
             </Tooltip>
+
 
             <Link to="/dashboard">
               <Button

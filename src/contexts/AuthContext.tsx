@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { simpleAuth } from '../services/simpleAuth';
 
 // Definir todos los tipos aquí para evitar problemas de importación circular
 export interface User {
@@ -67,6 +68,28 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const checkCurrentUser = async () => {
     try {
       setLoading(true);
+      
+      // Primero intentar con simpleAuth
+      const simpleUser = simpleAuth.getCurrentUser();
+      if (simpleUser) {
+        setUser({ 
+          id: simpleUser.id, 
+          email: simpleUser.email 
+        });
+        setProfile({ 
+          id: simpleUser.id,
+          email: simpleUser.email,
+          full_name: simpleUser.name,
+          role_name: simpleUser.role,
+          role_description: simpleUser.role,
+          is_active: true,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        });
+        return;
+      }
+
+      // Fallback al sistema original
       const AuthService = await getAuthService();
       const current = await AuthService.getCurrentUser();
       setUser(current?.user || null);
@@ -86,6 +109,28 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const login = async (credentials: LoginCredentials) => {
     try {
       setLoading(true);
+      
+      // Intentar login con simpleAuth primero
+      const result = await simpleAuth.login(credentials.email, credentials.password);
+      if (result.success && result.user) {
+        setUser({ 
+          id: result.user.id, 
+          email: result.user.email 
+        });
+        setProfile({ 
+          id: result.user.id,
+          email: result.user.email,
+          full_name: result.user.name,
+          role_name: result.user.role,
+          role_description: result.user.role,
+          is_active: true,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        });
+        return;
+      }
+
+      // Fallback al sistema original si simpleAuth falla
       const AuthService = await getAuthService();
       const { user, profile } = await AuthService.login(credentials);
       setUser(user);
@@ -101,8 +146,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const logout = async () => {
     try {
       setLoading(true);
-      const AuthService = await getAuthService();
-      await AuthService.logout();
+      
+      // Logout de simpleAuth
+      simpleAuth.logout();
+      
+      // Logout del sistema original también
+      try {
+        const AuthService = await getAuthService();
+        await AuthService.logout();
+      } catch (error) {
+        // Ignore errors from old system
+      }
+      
       setUser(null);
       setProfile(null);
     } catch (error) {
@@ -113,19 +168,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const isAdmin = profile?.role_name === 'admin';
+  const isAdmin = profile?.role_name === 'admin' || profile?.role_name === 'superadmin';
 
   const hasPermission = (permission: 'read' | 'write' | 'delete'): boolean => {
     if (!profile) return false;
 
     const { role_name } = profile;
 
+    // Superadmin tiene todos los permisos
+    if (role_name === 'superadmin') return true;
+
     switch (permission) {
       case 'read':
-        return ['admin', 'viewer'].includes(role_name);
+        return ['admin', 'viewer', 'user'].includes(role_name);
       case 'write':
       case 'delete':
-        return role_name === 'admin';
+        return ['admin', 'superadmin'].includes(role_name);
       default:
         return false;
     }

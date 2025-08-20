@@ -4,7 +4,7 @@ export interface User {
   id: string;
   email: string;
   name: string;
-  role: 'admin' | 'user';
+  role: 'superadmin' | 'admin' | 'user';
 }
 
 export interface AuthResult {
@@ -36,7 +36,6 @@ class SimpleAuthService {
 
   async login(email: string, password: string): Promise<AuthResult> {
     try {
-      console.log('🔐 Intentando login con base de datos:', email);
       
       if (!supabase) {
         // Fallback a usuarios hardcodeados si no hay Supabase
@@ -83,7 +82,7 @@ class SimpleAuthService {
         id: user.id,
         email: user.email,
         name: user.full_name,
-        role: user.role as 'admin' | 'user'
+        role: user.role as 'superadmin' | 'admin' | 'user'
       };
 
       // Generar token simple
@@ -97,8 +96,6 @@ class SimpleAuthService {
       
       // Guardar sesión
       this.saveSession();
-      
-      console.log('✅ Login exitoso desde BD:', authUser.name);
       
       return {
         success: true,
@@ -122,7 +119,6 @@ class SimpleAuthService {
   }
 
   private async loginFallback(email: string, password: string): Promise<AuthResult> {
-    console.log('🔄 Usando autenticación fallback para:', email);
     
     const fallbackUsers = [
       {
@@ -175,7 +171,6 @@ class SimpleAuthService {
   }
 
   logout(): void {
-    console.log('🚪 Cerrando sesión...');
     this.currentUser = null;
     this.authToken = null;
     this.clearSession();
@@ -193,9 +188,27 @@ class SimpleAuthService {
     return this.currentUser !== null && this.authToken !== null;
   }
 
-  hasRole(role: 'admin' | 'user'): boolean {
+  hasRole(role: 'superadmin' | 'admin' | 'user'): boolean {
     if (!this.currentUser) return false;
-    return this.currentUser.role === 'admin' || this.currentUser.role === role;
+    
+    // superadmin tiene todos los permisos
+    if (this.currentUser.role === 'superadmin') return true;
+    
+    // admin tiene permisos de admin y user
+    if (this.currentUser.role === 'admin') return role === 'admin' || role === 'user';
+    
+    // user solo tiene permisos de user
+    return this.currentUser.role === role;
+  }
+
+  // Nueva función específica para gestión de usuarios - solo superadmin
+  canManageUsers(): boolean {
+    return this.currentUser?.role === 'superadmin';
+  }
+
+  // Función para verificar si es admin (incluye superadmin)
+  isAdmin(): boolean {
+    return this.currentUser?.role === 'admin' || this.currentUser?.role === 'superadmin';
   }
 
   private saveSession(): void {
@@ -230,9 +243,9 @@ class SimpleAuthService {
     }
   }
 
-  // Métodos para gestión de usuarios (solo admins)
+  // Métodos para gestión de usuarios (solo superadmin)
   async getAllUsers(): Promise<User[]> {
-    if (!this.isAuthenticated() || !this.hasRole('admin')) {
+    if (!this.isAuthenticated() || !this.canManageUsers()) {
       throw new Error('No tienes permisos para ver usuarios');
     }
 
@@ -252,7 +265,7 @@ class SimpleAuthService {
         id: user.id,
         email: user.email,
         name: user.full_name,
-        role: user.role as 'admin' | 'user'
+        role: user.role as 'superadmin' | 'admin' | 'user'
       })) || [];
     } catch (error) {
       console.error('Error obteniendo usuarios:', error);
@@ -264,9 +277,9 @@ class SimpleAuthService {
     email: string;
     password: string;
     name: string;
-    role: 'admin' | 'user';
+    role: 'superadmin' | 'admin' | 'user';
   }): Promise<void> {
-    if (!this.isAuthenticated() || !this.hasRole('admin')) {
+    if (!this.isAuthenticated() || !this.canManageUsers()) {
       throw new Error('No tienes permisos para crear usuarios');
     }
 
@@ -299,10 +312,10 @@ class SimpleAuthService {
   async updateUser(userId: string, userData: {
     email?: string;
     name?: string;
-    role?: 'admin' | 'user';
+    role?: 'superadmin' | 'admin' | 'user';
     is_active?: boolean;
   }): Promise<void> {
-    if (!this.isAuthenticated() || !this.hasRole('admin')) {
+    if (!this.isAuthenticated() || !this.canManageUsers()) {
       throw new Error('No tienes permisos para actualizar usuarios');
     }
 
@@ -333,7 +346,7 @@ class SimpleAuthService {
   }
 
   async changePassword(userId: string, newPassword: string): Promise<void> {
-    if (!this.isAuthenticated() || !this.hasRole('admin')) {
+    if (!this.isAuthenticated() || !this.canManageUsers()) {
       throw new Error('No tienes permisos para cambiar contraseñas');
     }
 
@@ -359,7 +372,7 @@ class SimpleAuthService {
   }
 
   async deleteUser(userId: string): Promise<void> {
-    if (!this.isAuthenticated() || !this.hasRole('admin')) {
+    if (!this.isAuthenticated() || !this.canManageUsers()) {
       throw new Error('No tienes permisos para eliminar usuarios');
     }
 

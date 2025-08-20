@@ -1,174 +1,178 @@
-# 🚔 Dashboard Operativo SENPA
+# Dashboard SENPA 🌿
 
-Dashboard de monitoreo y análisis operacional para el Servicio Nacional de Policía Antinarcóticos (SENPA). Sistema completo de gestión y visualización de operaciones policiales.
+Sistema de dashboard ambiental para el Servicio Nacional de Protección Ambiental (SENPA) de República Dominicana.
+
+## 📋 Descripción
+
+Dashboard interactivo para la visualización y gestión de datos ambientales, casos operativos, y administración de usuarios del SENPA. Incluye funcionalidades de autenticación, gestión de usuarios, y análisis de datos ambientales con visualizaciones en tiempo real.
 
 ## ✨ Características
 
-- 🎯 **Dashboard Ejecutivo**: Métricas operacionales en tiempo real
-- 🌿 **Dashboard Ambiental**: Análisis detallado de operaciones
-- 🗺️ **Mapas Interactivos**: Visualización geográfica de detenidos y vehículos  
-- 👮 **Gestión Operacional**: Control de notas informativas, detenidos, incautaciones
-- 👨‍💼 **Sistema de Usuarios**: Roles y permisos (Admin/Viewer)
-- 📊 **Gráficos Avanzados**: Visualizaciones con Recharts y Material-UI
-- 📱 **Responsive**: Adaptable a todos los dispositivos
-- 🔐 **Autenticación Segura**: Login con Supabase Auth
+### 🔐 Sistema de Autenticación
+- **Tres roles de usuario**: Superadmin, Admin, User
+- **Autenticación segura** con Supabase
+- **Gestión de contraseñas**: Cambio de contraseña personal y administrativa
+- **Protección de rutas** basada en roles
 
-## 🚀 Instalación y Configuración
+### 👥 Gestión de Usuarios
+- **Creación de usuarios** con asignación de roles
+- **Cambio de contraseñas** (personal y administrativa)
+- **Generador de contraseñas** seguras automático
+- **Eliminación de usuarios** (solo superadmin)
 
-### 1. Clonar e Instalar
+### 📊 Dashboard de Datos
+- **Visualización de métricas** ambientales en tiempo real
+- **Filtros avanzados** por fecha, provincia, tipo de actividad
+- **Mapas interactivos** para detenidos y vehículos
+- **Exportación de datos** y reportes
 
-```bash
-cd dashboard-senpa
-npm install
+### 🗺️ Mapas Integrados
+- **Google Maps** para visualización geográfica
+- **Marcadores dinámicos** para casos y operativos
+- **Filtros geográficos** por ubicación
+
+## 🚀 Instalación
+
+### Prerrequisitos
+
+- Node.js 18+ 
+- npm o yarn
+- Cuenta de Supabase
+- Google Maps API Key
+
+### Pasos de instalación
+
+1. **Clonar el repositorio**
+   ```bash
+   git clone https://github.com/Almanzar001/Senpa.git
+   cd Senpa
+   ```
+
+2. **Instalar dependencias**
+   ```bash
+   npm install
+   ```
+
+3. **Configurar variables de entorno**
+   ```bash
+   cp .env.example .env.local
+   ```
+   
+   Editar `.env.local` con tus claves:
+   ```env
+   VITE_SUPABASE_URL=https://tu-proyecto-supabase.com
+   VITE_SUPABASE_ANON_KEY=tu_supabase_service_role_key
+   VITE_GOOGLE_MAPS_API_KEY=tu_google_maps_api_key
+   ```
+
+4. **Configurar base de datos**
+   - Ejecutar el script `database_setup_usuarios.sql` en Supabase
+   - Configurar las políticas RLS según se requiera
+
+5. **Ejecutar en desarrollo**
+   ```bash
+   npm run dev
+   ```
+
+## 🏗️ Estructura del Proyecto
+
+```
+src/
+├── components/          # Componentes React
+│   ├── auth/           # Componentes de autenticación
+│   ├── maps/           # Componentes de mapas
+│   └── admin/          # Componentes de administración
+├── contexts/           # Contextos React
+├── services/           # Servicios de API y autenticación
+├── hooks/             # Hooks personalizados
+├── types/             # Definiciones de tipos TypeScript
+└── utils/             # Utilidades y helpers
 ```
 
-### 2. Configurar Google Sheets API
+## 👤 Roles de Usuario
 
-1. Ve a [Google Cloud Console](https://console.cloud.google.com/)
-2. Crea un nuevo proyecto o selecciona uno existente
-3. Habilita la **Google Sheets API**
-4. Crea credenciales (API Key)
-5. Opcionalmente, puedes restringir la API Key a Google Sheets API
+### 🔱 Superadmin
+- **Gestión completa de usuarios** (crear, eliminar, cambiar contraseñas)
+- **Acceso total** a todas las funcionalidades
+- **Administración del sistema**
 
-### 3. Preparar tu Google Sheet
+### 🔑 Admin  
+- **Acceso completo al dashboard** y datos
+- **Gestión de casos** (crear, editar, eliminar)
+- **Sin acceso** a gestión de usuarios
 
-1. Abre tu Google Sheet
-2. Asegúrate de que esté **compartido públicamente** o con permisos de lectura
-3. La primera fila de cada hoja debe contener los encabezados/nombres de columnas
-4. Copia la URL de tu Google Sheet
-
-### 4. Ejecutar la Aplicación
-
-```bash
-npm run dev
-```
-
-Abre [http://localhost:5173](http://localhost:5173) en tu navegador.
-
-## 📋 Uso
-
-1. **Configuración Inicial**: 
-   - Ingresa tu API Key de Google
-   - Pega la URL completa de tu Google Sheet (o solo el ID)
-   - Haz clic en "Cargar Dashboard"
-
-2. **Navegación**:
-   - Usa las pestañas para navegar entre diferentes hojas
-   - Alterna entre vista de tabla y vista gráfica
-   - Usa la búsqueda en la vista de tabla para filtrar datos
-
-3. **Visualizaciones Automáticas**:
-   - **Gráfico de Barras**: Para datos numéricos
-   - **Gráfico de Torta**: Para distribución de categorías
-   - **Gráfico de Líneas**: Para tendencias temporales
-   - **Gráfico de Áreas**: Para datos acumulados
+### 👀 User
+- **Acceso de solo lectura** al dashboard
+- **Visualización de datos** y reportes
+- **Sin permisos** de modificación
 
 ## 🛠️ Tecnologías Utilizadas
 
-- **React 18** con TypeScript
-- **Vite** como build tool
-- **Material-UI (MUI)** para componentes
-- **Tailwind CSS** para estilos
-- **Recharts** para visualizaciones
-- **Axios** para peticiones HTTP
-- **Google Sheets API v4**
+- **Frontend**: React 18, TypeScript, Vite
+- **Styling**: Tailwind CSS, Material-UI
+- **Autenticación**: Supabase Auth + Sistema personalizado
+- **Base de datos**: Supabase (PostgreSQL)
+- **Mapas**: Google Maps API
+- **Charts**: Chart.js, Recharts
+- **Estado**: React Context API
 
-## 📊 Estructura de Datos
-
-El dashboard funciona mejor cuando tus hojas de Google Sheets tienen:
-
-- **Primera fila**: Nombres de columnas/encabezados
-- **Datos numéricos**: Para gráficos estadísticos
-- **Datos categóricos**: Para gráficos de distribución
-- **Formato consistente**: Evitar celdas vacías en los encabezados
-
-### Ejemplo de estructura:
-
-| Producto | Ventas | Región | Fecha |
-|----------|--------|--------|-------|
-| Laptop   | 1500   | Norte  | 2024-01-15 |
-| Mouse    | 25     | Sur    | 2024-01-16 |
-| Teclado  | 75     | Este   | 2024-01-17 |
-
-## 🎨 Personalización
-
-### Colores y Tema
-
-Edita `src/App.tsx` para cambiar el tema de Material-UI:
-
-```typescript
-const theme = createTheme({
-  palette: {
-    primary: {
-      main: '#3b82f6', // Color principal
-    },
-    // ... más configuraciones
-  },
-});
-```
-
-### Estilos Adicionales
-
-Modifica `tailwind.config.js` para personalizar colores y estilos:
-
-```javascript
-theme: {
-  extend: {
-    colors: {
-      primary: {
-        // Tus colores personalizados
-      }
-    }
-  }
-}
-```
-
-## 🔒 Seguridad
-
-- **API Key**: Nunca committed tu API Key al repositorio
-- **Variables de Entorno**: Considera usar `.env` para producción
-- **CORS**: La Google Sheets API maneja CORS automáticamente
-- **Permisos**: Configura permisos mínimos necesarios en Google Cloud
-
-## 🚀 Deploy
-
-### Vercel
+## 🔧 Scripts Disponibles
 
 ```bash
-npm run build
-# Sube la carpeta 'dist' a Vercel
+npm run dev          # Servidor de desarrollo
+npm run build        # Build para producción  
+npm run preview      # Vista previa del build
+npm run lint         # Linter ESLint
+npm run type-check   # Verificación de tipos TypeScript
 ```
 
-### Netlify
+## 🔐 Seguridad
 
-```bash
-npm run build
-# Arrastra la carpeta 'dist' a Netlify
-```
+### Autenticación
+- **Hashing de contraseñas** con algoritmo seguro
+- **Tokens JWT** para sesiones
+- **Verificación de roles** en cada ruta protegida
+- **Validación de permisos** en frontend y backend
 
-## 🤝 Contribuciones
+### Variables de Entorno
+- **Claves API** nunca expuestas en el código
+- **Configuración por ambiente** (desarrollo, producción)
+- **Archivos sensibles** en `.gitignore`
 
-Las contribuciones son bienvenidas. Por favor:
+## 📱 Responsive Design
+
+- ✅ **Desktop** (1200px+)
+- ✅ **Tablet** (768px - 1199px)  
+- ✅ **Mobile** (320px - 767px)
+
+## 🤝 Contribución
 
 1. Fork el proyecto
-2. Crea tu feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit tus cambios (`git commit -m 'Add some AmazingFeature'`)
-4. Push al branch (`git push origin feature/AmazingFeature`)
-5. Abre un Pull Request
+2. Crear branch de feature (`git checkout -b feature/nueva-funcionalidad`)
+3. Commit cambios (`git commit -am 'Agrega nueva funcionalidad'`)
+4. Push al branch (`git push origin feature/nueva-funcionalidad`)
+5. Crear Pull Request
 
 ## 📄 Licencia
 
-Este proyecto está bajo la Licencia MIT. Ver `LICENSE` para más detalles.
+Este proyecto está bajo la licencia MIT. Ver archivo `LICENSE` para más detalles.
 
-## 🆘 Soporte
+## 🎯 Roadmap
 
-Si encuentras algún problema:
+- [ ] **Notificaciones push** en tiempo real
+- [ ] **Exportación avanzada** (PDF, Excel, CSV)
+- [ ] **Reportes automáticos** por email
+- [ ] **Dashboard móvil** nativo
+- [ ] **API REST** pública documentada
+- [ ] **Integración** con otros sistemas gubernamentales
 
-1. Verifica que tu Google Sheet esté público o compartido
-2. Confirma que tu API Key tenga permisos para Google Sheets API
-3. Revisa la consola del navegador para errores
-4. Asegúrate de que la primera fila contenga encabezados válidos
+## 📞 Soporte
+
+Para soporte técnico o consultas:
+- 📧 Email: soporte@senpa.gov.do
+- 📱 Teléfono: +1 (809) 123-4567
+- 🌐 Web: [www.senpa.gov.do](https://www.senpa.gov.do)
 
 ---
 
-Hecho con ❤️ para análisis de datos moderno y sofisticado
+Desarrollado con ❤️ para el SENPA - República Dominicana 🇩🇴

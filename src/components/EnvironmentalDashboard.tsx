@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useData } from '../contexts/DataContext';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermissions } from '../hooks/usePermissions';
+import { simpleAuth } from '../services/simpleAuth';
 import EnvironmentalMetrics from './EnvironmentalMetrics';
 import EnvironmentalFiltersComponent from './EnvironmentalFilters';
 import EnvironmentalCharts from './EnvironmentalCharts';
@@ -42,6 +43,13 @@ const EnvironmentalDashboard: React.FC = () => {
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [refreshInterval, setRefreshInterval] = useState(30); // segundos
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordSuccess, setPasswordSuccess] = useState('');
+  const [passwordLoading, setPasswordLoading] = useState(false);
 
   useEffect(() => {
     // This will be triggered by the context's fetchData, but we can update the timestamp
@@ -74,6 +82,94 @@ const EnvironmentalDashboard: React.FC = () => {
   const toggleAutoRefresh = useCallback(() => {
     setAutoRefresh(!autoRefresh);
   }, [autoRefresh]);
+
+  const generateSecurePassword = () => {
+    const charset = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%&*';
+    let password = '';
+    
+    // Asegurar al menos una mayúscula, una minúscula, un número y un símbolo
+    password += 'ABCDEFGHJKMNPQRSTUVWXYZ'[Math.floor(Math.random() * 24)];
+    password += 'abcdefghijkmnpqrstuvwxyz'[Math.floor(Math.random() * 24)];
+    password += '23456789'[Math.floor(Math.random() * 8)];
+    password += '!@#$%&*'[Math.floor(Math.random() * 7)];
+    
+    // Completar con caracteres aleatorios hasta 12 caracteres
+    for (let i = 4; i < 12; i++) {
+      password += charset[Math.floor(Math.random() * charset.length)];
+    }
+    
+    // Mezclar los caracteres
+    return password.split('').sort(() => Math.random() - 0.5).join('');
+  };
+
+  const handleGeneratePassword = () => {
+    const generated = generateSecurePassword();
+    setNewPassword(generated);
+    setConfirmPassword(generated);
+  };
+
+  const handlePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    setPasswordError('');
+    setPasswordSuccess('');
+
+    // Validaciones
+    if (!currentPassword.trim()) {
+      setPasswordError('La contraseña actual es obligatoria');
+      return;
+    }
+
+    if (!newPassword.trim()) {
+      setPasswordError('La nueva contraseña es obligatoria');
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      setPasswordError('La nueva contraseña debe tener al menos 6 caracteres');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPasswordError('Las contraseñas no coinciden');
+      return;
+    }
+
+    if (newPassword === currentPassword) {
+      setPasswordError('La nueva contraseña debe ser diferente a la actual');
+      return;
+    }
+
+    try {
+      setPasswordLoading(true);
+      
+      // Primero verificar la contraseña actual
+      const loginResult = await simpleAuth.login(user?.email || '', currentPassword);
+      if (!loginResult.success) {
+        setPasswordError('Contraseña actual incorrecta');
+        return;
+      }
+
+      // Cambiar la contraseña
+      await simpleAuth.changePassword(user?.id || '', newPassword);
+      
+      setPasswordSuccess('✅ Contraseña cambiada exitosamente');
+      
+      // Limpiar formulario después de un momento
+      setTimeout(() => {
+        setShowPasswordModal(false);
+        setCurrentPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
+        setPasswordSuccess('');
+      }, 2000);
+
+    } catch (err: any) {
+      setPasswordError(err.message || 'Error cambiando contraseña');
+    } finally {
+      setPasswordLoading(false);
+    }
+  };
 
   const MemoizedEnvironmentalMetrics = useMemo(() => React.memo(EnvironmentalMetrics), []);
   const MemoizedEnvironmentalCharts = useMemo(() => React.memo(EnvironmentalCharts), []);
@@ -173,24 +269,38 @@ const EnvironmentalDashboard: React.FC = () => {
           </div>
 
           <div className="absolute top-4 right-4">
-            <div className="flex items-center gap-3">
-              <span className="text-sm text-gray-600">
+            <div className="flex flex-col items-end gap-2">
+              {/* Botones de acción */}
+              <div className="flex items-center gap-3">
+                {/* Botón cambiar contraseña para todos los usuarios */}
+                <button
+                  onClick={() => setShowPasswordModal(true)}
+                  className="px-3 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600 transition-colors"
+                  title="Cambiar mi contraseña"
+                >
+                  🔑 Mi Contraseña
+                </button>
+
+                {user && simpleAuth.canManageUsers() && (
+                  <Link 
+                    to="/admin/users"
+                    className="px-3 py-1 bg-purple-500 text-white text-sm rounded hover:bg-purple-600 transition-colors"
+                  >
+                    👑 Gestión Usuarios
+                  </Link>
+                )}
+                <button
+                  onClick={handleLogout}
+                  className="px-3 py-1 bg-red-500 text-white text-sm rounded hover:bg-red-600 transition-colors"
+                >
+                  Cerrar Sesión
+                </button>
+              </div>
+              
+              {/* Información del usuario debajo */}
+              <span className="text-sm text-gray-600 bg-white px-2 py-1 rounded shadow-sm">
                 {user?.email} ({profile?.role_name})
               </span>
-              {profile?.role_name === 'admin' && (
-                <Link 
-                  to="/admin/users"
-                  className="px-3 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600 transition-colors"
-                >
-                  👥 Usuarios
-                </Link>
-              )}
-              <button
-                onClick={handleLogout}
-                className="px-3 py-1 bg-red-500 text-white text-sm rounded hover:bg-red-600 transition-colors"
-              >
-                Cerrar Sesión
-              </button>
             </div>
           </div>
           
@@ -428,6 +538,128 @@ const EnvironmentalDashboard: React.FC = () => {
         onAutoRefreshChange={setAutoRefresh}
         onIntervalChange={setRefreshInterval}
       />
+
+      {/* Modal para cambiar contraseña personal */}
+      {showPasswordModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Cambiar Mi Contraseña
+                </h3>
+                <button
+                  onClick={() => {
+                    setShowPasswordModal(false);
+                    setCurrentPassword('');
+                    setNewPassword('');
+                    setConfirmPassword('');
+                    setPasswordError('');
+                    setPasswordSuccess('');
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {passwordError && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
+                  <p className="text-red-800 text-sm">❌ {passwordError}</p>
+                </div>
+              )}
+
+              {passwordSuccess && (
+                <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md">
+                  <p className="text-green-800 text-sm">{passwordSuccess}</p>
+                </div>
+              )}
+
+              <form onSubmit={handlePasswordChange}>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Contraseña Actual *
+                    </label>
+                    <input
+                      type="password"
+                      value={currentPassword}
+                      onChange={(e) => setCurrentPassword(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Ingresa tu contraseña actual"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Nueva Contraseña *
+                    </label>
+                    <div className="flex space-x-2">
+                      <input
+                        type="text"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Mínimo 6 caracteres"
+                        required
+                        minLength={6}
+                      />
+                      <button
+                        type="button"
+                        onClick={handleGeneratePassword}
+                        className="px-3 py-2 bg-green-500 text-white text-sm rounded-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500"
+                        title="Generar contraseña segura"
+                      >
+                        🎲
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Confirmar Nueva Contraseña *
+                    </label>
+                    <input
+                      type="text"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Repite la nueva contraseña"
+                      required
+                      minLength={6}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex space-x-3 mt-6">
+                  <button
+                    type="submit"
+                    disabled={passwordLoading}
+                    className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                  >
+                    {passwordLoading ? 'Cambiando...' : 'Cambiar Contraseña'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowPasswordModal(false);
+                      setCurrentPassword('');
+                      setNewPassword('');
+                      setConfirmPassword('');
+                      setPasswordError('');
+                      setPasswordSuccess('');
+                    }}
+                    className="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

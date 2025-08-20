@@ -5,7 +5,7 @@ import { DataProvider } from './contexts/DataContext';
 import SimpleDashboard from './components/SimpleDashboard';
 import LoginForm from './components/auth/LoginForm';
 import SimpleProtectedRoute from './components/auth/SimpleProtectedRoute';
-import UserManagement from './components/admin/UserManagement';
+import SimpleUserManagement from './components/SimpleUserManagement';
 
 const EnvironmentalDashboard = React.lazy(() => import('./components/EnvironmentalDashboard'));
 const ExecutiveDashboard = React.lazy(() => import('./components/ExecutiveDashboard'));
@@ -105,8 +105,8 @@ function App() {
                 <Route 
                   path="/admin/users" 
                   element={
-                    <SimpleProtectedRoute adminOnly>
-                      <UserManagement />
+                    <SimpleProtectedRoute superadminOnly>
+                      <SimpleUserManagement />
                     </SimpleProtectedRoute>
                   } 
                 />
