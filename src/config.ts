@@ -2,8 +2,8 @@ import { createClient } from '@supabase/supabase-js';
 
 // Configuración del Dashboard SENPA
 export const CONFIG = {
-  // Supabase Configuration - usando variables de entorno
-  SUPABASE_URL: import.meta.env.VITE_SUPABASE_URL || 'https://nnsupabasenn.coman2uniformes.com',
+  // Supabase Configuration - FORZANDO dominio público
+  SUPABASE_URL: 'https://nnsupabasenn.coman2uniformes.com',
   SUPABASE_ANON_KEY: import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyAgCiAgICAicm9sZSI6ICJhbm9uIiwKICAgICJpc3MiOiAic3VwYWJhc2UtZGVtbyIsCiAgICAiaWF0IjogMTY0MTc2OTIwMCwKICAgICJleHAiOiAxNzk5NTM1NjAwCn0.dc_X5iR_VP_qT0zsiyj_I_OZ2T9FtRU2BBNWN8Bu4GE',
   
   // Lista de tablas de Supabase
@@ -48,14 +48,5 @@ console.log('🟦 Creating Supabase client with:');
 console.log('URL:', CONFIG.SUPABASE_URL);
 console.log('Key length:', CONFIG.SUPABASE_ANON_KEY?.length || 0);
 
-// Cliente de Supabase para instalación auto-alojada
-export const supabase = createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false,
-    detectSessionInUrl: false
-  },
-  db: {
-    schema: 'public'
-  }
-});
+// Cliente de Supabase simplificado para producción
+export const supabase = createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
