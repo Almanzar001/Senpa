@@ -602,7 +602,16 @@ const ExecutiveDashboard: React.FC = () => {
             </Typography>
             <EnvironmentalCharts 
               cases={filteredCases}
-              filters={{ isExecutiveView: true }}
+              filters={{ 
+                dateFrom: filters.dateFrom,
+                dateTo: filters.dateTo,
+                provincia: '',
+                division: '',
+                tipoActividad: '',
+                areaTemática: '',
+                activeDateFilter: filters.activeDateFilter,
+                isExecutiveView: true 
+              }}
             />
           </CardContent>
         </Card>

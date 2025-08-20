@@ -137,20 +137,11 @@ export class DataMapperService {
               id: `vehiculo_${envCase.numeroCaso}_${index}`,
               numeroCaso: envCase.numeroCaso,
               fecha: envCase.fecha,
-              hora: envCase.hora,
-              provincia: envCase.provincia,
-              localidad: envCase.localidad,
-              region: envCase.region,
-              tipoVehiculo: vehiculoInfo.tipo || 'No especificado',
+              tipo: vehiculoInfo.tipo || 'No especificado',
               marca: vehiculoInfo.marca || 'No especificada',
               color: vehiculoInfo.color || 'No especificado',
-              // Campos que no están en tu BD
-              modelo: '',
-              año: new Date().getFullYear(),
-              placa: '',
-              propietario: '',
-              estado: 'Retenido',
-              observaciones: ''
+              detalle: `Región: ${envCase.region}, Localidad: ${envCase.localidad}`,
+              provinciaMunicipio: `${envCase.provincia} - ${envCase.localidad}`
             });
           });
         } else {
@@ -160,20 +151,11 @@ export class DataMapperService {
               id: `vehiculo_${envCase.numeroCaso}_${i}`,
               numeroCaso: envCase.numeroCaso,
               fecha: envCase.fecha,
-              hora: envCase.hora,
-              provincia: envCase.provincia,
-              localidad: envCase.localidad,
-              region: envCase.region,
-              tipoVehiculo: 'Vehículo',
+              tipo: 'Vehículo',
               marca: 'No especificada',
               color: 'No especificado',
-              // Campos que no están en tu BD
-              modelo: '',
-              año: new Date().getFullYear(),
-              placa: '',
-              propietario: '',
-              estado: 'Retenido',
-              observaciones: `Caso: ${envCase.numeroCaso}`
+              detalle: `Caso: ${envCase.numeroCaso}, Región: ${envCase.region}`,
+              provinciaMunicipio: `${envCase.provincia} - ${envCase.localidad}`
             });
           }
         }
@@ -280,7 +262,7 @@ export class DataMapperService {
         region: nota.region,
         tipoActividad: nota.tipoActividad,
         areaTemática: nota.areaTemática,
-        notificados: typeof nota.notificados === 'number' ? nota.notificados : parseInt(String(nota.notificados || 0)) || 0,
+        notificados: String(nota.notificados || ''),
         procuraduria: nota.procuraduria,
         resultado: nota.resultado
       }),

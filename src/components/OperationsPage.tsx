@@ -236,7 +236,7 @@ const OperationsPage: React.FC = () => {
               region: nota.region,
               tipoActividad: nota.tipoActividad,
               areaTemática: nota.areaTemática,
-              notificados: nota.notificados && String(nota.notificados).trim() !== '' ? 1 : 0,
+              notificados: String(nota.notificados || ''),
               notificadosInfo: String(nota.notificados || ''),
               procuraduria: nota.procuraduria,
               resultado: nota.resultado

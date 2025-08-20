@@ -178,25 +178,12 @@ export class DetenidosService extends BaseTableService<Detenido> {
       errors.push('Formato de fecha inválido');
     }
 
-    // Validate age
-    if (item.edad !== undefined && (item.edad < 0 || item.edad > 150)) {
-      errors.push('Edad debe estar entre 0 y 150 años');
-    }
-
-    // Validate cedula format (basic check)
-    if (item.cedula && !/^[\d\-]+$/.test(item.cedula)) {
-      errors.push('Formato de cédula inválido');
-    }
+    // Validations removed - fields don't exist in current Detenido interface
 
     return errors;
   }
 
-  // Get by nationality
-  getByNationality(nationality: string): Detenido[] {
-    return this.getAll().filter(detenido => 
-      detenido.nacionalidad.toLowerCase().includes(nationality.toLowerCase())
-    );
-  }
+  // Get by nationality - method removed as nacionalidad field doesn't exist
 
   // Get total count
   getTotalDetenidos(): number {
@@ -234,7 +221,7 @@ export class VehiculosService extends BaseTableService<Vehiculo> {
   // Get by vehicle type
   getByType(type: string): Vehiculo[] {
     return this.getAll().filter(vehiculo => 
-      vehiculo.tipoVehiculo.toLowerCase().includes(type.toLowerCase())
+      vehiculo.tipo.toLowerCase().includes(type.toLowerCase())
     );
   }
 
