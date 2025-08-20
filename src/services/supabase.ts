@@ -1,6 +1,7 @@
 import { CONFIG } from '../config'
 // Importar el cliente único de config.ts para evitar múltiples instancias
 import { supabase } from '../config'
+import { fallbackData, isProductionFallback } from './fallbackData'
 
 // Re-exportar el cliente único
 export { supabase }
@@ -18,11 +19,30 @@ class SupabaseService {
   
   async getTableData(tableName: string): Promise<SheetData> {
     try {
+      console.log(`🟦 Fetching table ${tableName} from ${CONFIG.SUPABASE_URL}`);
+      console.log('🟦 Environment:', typeof window !== 'undefined' ? 'browser' : 'server');
+      console.log('🟦 Production check:', import.meta.env.PROD);
+      
       const { data, error } = await supabase
         .from(tableName)
         .select('*');
 
       if (error) {
+        console.error(`❌ Supabase error for ${tableName}:`, error);
+        console.error(`❌ Error details:`, JSON.stringify(error, null, 2));
+        
+        // En producción, usar datos de fallback si hay error de conectividad
+        if (isProductionFallback() && error.message.includes('fetch')) {
+          console.log(`🟨 Using fallback data for ${tableName} in production`);
+          const fallbackTableData = fallbackData[tableName as keyof typeof fallbackData];
+          if (fallbackTableData) {
+            return {
+              name: tableName,
+              data: fallbackTableData
+            };
+          }
+        }
+        
         throw new Error(`Error fetching data from ${tableName}: ${error.message}`);
       }
 
@@ -48,6 +68,19 @@ class SupabaseService {
       };
     } catch (error: any) {
       console.error(`Error fetching table ${tableName}:`, error);
+      
+      // En producción, usar datos de fallback si hay error de red
+      if (isProductionFallback() && (error.name === 'TypeError' || error.message.includes('fetch'))) {
+        console.log(`🟨 Network error detected, using fallback data for ${tableName}`);
+        const fallbackTableData = fallbackData[tableName as keyof typeof fallbackData];
+        if (fallbackTableData) {
+          return {
+            name: tableName,
+            data: fallbackTableData
+          };
+        }
+      }
+      
       throw new Error(`Error al obtener datos de "${tableName}": ${error.message}`);
     }
   }
