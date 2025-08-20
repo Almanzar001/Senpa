@@ -21,10 +21,7 @@ class SupabaseService {
       // Verificar que el cliente Supabase esté disponible
       if (!supabase) {
         console.error('❌ Cliente Supabase no disponible');
-        return {
-          name: tableName,
-          data: []
-        };
+        throw new Error('Configuración de Supabase no válida. Verifica las variables de entorno.');
       }
 
       const { data, error } = await supabase
