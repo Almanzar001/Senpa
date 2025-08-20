@@ -1,10 +1,9 @@
-import { createClient } from '@supabase/supabase-js'
 import { CONFIG } from '../config'
+// Importar el cliente único de config.ts para evitar múltiples instancias
+import { supabase } from '../config'
 
-const supabaseUrl = CONFIG.SUPABASE_URL
-const supabaseAnonKey = CONFIG.SUPABASE_ANON_KEY
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+// Re-exportar el cliente único
+export { supabase }
 
 export interface DatabaseRow {
   [key: string]: any;

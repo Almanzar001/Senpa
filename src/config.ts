@@ -46,22 +46,11 @@ export const getCurrentDateString = (): string => {
 // Cliente de Supabase para instalación auto-alojada
 export const supabase = createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY, {
   auth: {
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: false,
-    flowType: 'implicit'
+    autoRefreshToken: false,
+    persistSession: false,
+    detectSessionInUrl: false
   },
   db: {
     schema: 'public'
-  },
-  global: {
-    headers: {
-      'X-Client-Info': 'dashboard-senpa'
-    }
-  },
-  realtime: {
-    params: {
-      eventsPerSecond: 2
-    }
   }
 });
