@@ -1,32 +1,57 @@
-import { supabase } from '../config';
+import { simpleAuth, type AuthResult } from './simpleAuth';
 import type { UserProfile, LoginCredentials, User } from '../contexts/AuthContext';
 
 export class AuthService {
-  // Login del usuario
+  // Login del usuario usando autenticación simple
   static async login(credentials: LoginCredentials) {
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: credentials.email,
-        password: credentials.password,
-      });
-
-      if (error) throw error;
-
-      // Obtener el perfil del usuario con su rol
-      const profile = await this.getUserProfile(data.user.id);
+      console.log('🟦 Llamando login...');
       
-      if (!profile) {
-        throw new Error('Usuario no autorizado');
+      const result: AuthResult = await simpleAuth.login(
+        credentials.email, 
+        credentials.password
+      );
+
+      if (!result.success) {
+        throw new Error(result.error || 'Error de autenticación');
       }
 
-      if (!profile.is_active) {
-        throw new Error('Usuario desactivado');
+      // Convertir el usuario simple al formato esperado
+      const user = result.user;
+      if (!user) {
+        throw new Error('Usuario no encontrado');
       }
+
+      // Crear un perfil compatible con el sistema existente
+      const profile: UserProfile = {
+        id: user.id,
+        email: user.email,
+        full_name: user.name,
+        role_name: user.role,
+        is_active: true,
+        created_at: new Date().toISOString()
+      };
+
+      // Crear una sesión mock compatible
+      const mockSession = {
+        access_token: simpleAuth.getAuthToken() || '',
+        refresh_token: '',
+        expires_in: 3600,
+        token_type: 'bearer',
+        user: {
+          id: user.id,
+          email: user.email,
+          app_metadata: {},
+          user_metadata: { name: user.name },
+          aud: 'authenticated',
+          created_at: new Date().toISOString()
+        }
+      };
 
       return {
-        user: data.user,
+        user: mockSession.user,
         profile,
-        session: data.session
+        session: mockSession
       };
     } catch (error) {
       console.error('Error en login:', error);
@@ -37,8 +62,7 @@ export class AuthService {
   // Logout del usuario
   static async logout() {
     try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
+      simpleAuth.logout();
     } catch (error) {
       console.error('Error en logout:', error);
       throw error;
@@ -48,27 +72,37 @@ export class AuthService {
   // Obtener usuario actual
   static async getCurrentUser() {
     try {
-      const { data: { user }, error } = await supabase.auth.getUser();
+      const currentUser = simpleAuth.getCurrentUser();
       
-      // Si no hay sesión, retornar null sin error
-      if (error?.message?.includes('Auth session missing')) {
+      if (!currentUser) {
         return null;
       }
-      
-      if (error) throw error;
-      if (!user) return null;
 
-      const profile = await this.getUserProfile(user.id);
+      // Crear un perfil compatible
+      const profile: UserProfile = {
+        id: currentUser.id,
+        email: currentUser.email,
+        full_name: currentUser.name,
+        role_name: currentUser.role,
+        is_active: true,
+        created_at: new Date().toISOString()
+      };
+
+      // Crear usuario mock compatible
+      const mockUser = {
+        id: currentUser.id,
+        email: currentUser.email,
+        app_metadata: {},
+        user_metadata: { name: currentUser.name },
+        aud: 'authenticated',
+        created_at: new Date().toISOString()
+      };
       
       return {
-        user,
+        user: mockUser,
         profile
       };
     } catch (error) {
-      // No mostrar error si simplemente no hay sesión
-      if (error?.message?.includes('Auth session missing')) {
-        return null;
-      }
       console.error('Error obteniendo usuario actual:', error);
       return null;
     }
@@ -95,11 +129,7 @@ export class AuthService {
   // Verificar si el usuario tiene permisos de admin
   static async isAdmin(userId?: string): Promise<boolean> {
     try {
-      const profile = userId 
-        ? await this.getUserProfile(userId)
-        : (await this.getCurrentUser())?.profile;
-
-      return profile?.role_name === 'admin';
+      return simpleAuth.hasRole('admin');
     } catch (error) {
       console.error('Error verificando admin:', error);
       return false;
@@ -109,17 +139,17 @@ export class AuthService {
   // Verificar permisos del usuario
   static async hasPermission(permission: 'read' | 'write' | 'delete'): Promise<boolean> {
     try {
-      const current = await this.getCurrentUser();
-      if (!current?.profile) return false;
+      if (!simpleAuth.isAuthenticated()) return false;
 
-      const { role_name } = current.profile;
+      const currentUser = simpleAuth.getCurrentUser();
+      if (!currentUser) return false;
 
       switch (permission) {
         case 'read':
-          return ['admin', 'viewer'].includes(role_name);
+          return ['admin', 'user'].includes(currentUser.role);
         case 'write':
         case 'delete':
-          return role_name === 'admin';
+          return currentUser.role === 'admin';
         default:
           return false;
       }
@@ -131,14 +161,26 @@ export class AuthService {
 
   // Escuchar cambios en la autenticación
   static onAuthStateChange(callback: (user: User | null, profile: UserProfile | null) => void) {
-    return supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session?.user) {
-        const profile = await this.getUserProfile(session.user.id);
-        callback(session.user, profile);
-      } else {
-        callback(null, null);
-      }
-    });
+    // Para el sistema simple, verificamos el estado inicial
+    const checkAuthState = () => {
+      const current = this.getCurrentUser();
+      current.then(result => {
+        if (result) {
+          callback(result.user as User, result.profile);
+        } else {
+          callback(null, null);
+        }
+      });
+    };
+
+    // Verificar estado inicial
+    checkAuthState();
+
+    // Retornar una función de limpieza (mock)
+    return {
+      data: { subscription: { unsubscribe: () => {} } },
+      error: null
+    };
   }
 
   // Obtener todos los usuarios (solo admins)
