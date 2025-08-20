@@ -62,7 +62,7 @@
   }
   
   .btn-sm {
-    @apply px-3 py-2 text-sm;
+    @apply px-2 py-1 text-xs sm:px-3 sm:py-2 sm:text-sm;
   }
   .btn-lg {
     @apply px-6 py-3 text-lg;
@@ -91,11 +91,11 @@
   }
   
   .dashboard-title {
-    @apply text-2xl lg:text-3xl font-bold text-neutral-900 tracking-tight;
+    @apply text-lg sm:text-2xl lg:text-3xl font-bold text-neutral-900 tracking-tight;
   }
   
   .dashboard-subtitle {
-    @apply text-neutral-600 text-sm lg:text-base;
+    @apply text-neutral-600 text-xs sm:text-sm lg:text-base;
   }
   
   /* Status indicators */
@@ -134,15 +134,15 @@
   
   /* Metrics cards */
   .metric-card {
-    @apply card p-6 hover:shadow-lg transition-all duration-250;
+    @apply card p-3 sm:p-6 hover:shadow-lg transition-all duration-250;
   }
   
   .metric-value {
-    @apply text-2xl lg:text-3xl font-bold text-neutral-900;
+    @apply text-lg sm:text-2xl lg:text-3xl font-bold text-neutral-900;
   }
   
   .metric-label {
-    @apply text-sm font-medium text-neutral-600 uppercase tracking-wide;
+    @apply text-xs sm:text-sm font-medium text-neutral-600 uppercase tracking-wide;
   }
   
   .metric-change {
@@ -238,5 +238,33 @@
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+/* Mobile-specific optimizations */
+@media (max-width: 640px) {
+  /* Smaller touch targets adjustment */
+  .btn {
+    @apply min-h-[36px] min-w-[36px];
+  }
+  
+  /* Better mobile card spacing */
+  .metric-card {
+    @apply rounded-lg;
+  }
+  
+  /* Mobile-friendly text sizing */
+  .dashboard-header {
+    @apply p-2;
+  }
+  
+  /* Improved mobile scrolling */
+  body {
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Better mobile input sizing */
+  input, select, textarea {
+    @apply min-h-[40px] text-base;
   }
 }

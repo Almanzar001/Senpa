@@ -257,62 +257,70 @@ const EnvironmentalDashboard: React.FC = () => {
     <div className="dashboard-container">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {/* Header Rediseñado */}
-        <header className="dashboard-header p-6 mb-8 animate-fade-in relative">
-          {/* Botones de admin y logout en esquina superior derecha */}
-          <div className="absolute top-4 left-4">
+        <header className="dashboard-header p-3 sm:p-6 mb-4 sm:mb-8 animate-fade-in relative">
+          {/* Botones de admin y logout - Mobile optimized */}
+          <div className="absolute top-2 left-2 sm:top-4 sm:left-4">
             <Link 
               to="/"
-              className="px-3 py-1 bg-slate-500 text-white text-sm rounded hover:bg-slate-600 transition-colors"
+              className="px-2 py-1 sm:px-3 sm:py-1 bg-slate-500 text-white text-xs sm:text-sm rounded hover:bg-slate-600 transition-colors flex items-center gap-1"
+              title="Dashboard Ejecutivo"
             >
-              📊 Dashboard Ejecutivo
+              <span className="text-sm">📊</span>
+              <span className="hidden sm:inline">Dashboard Ejecutivo</span>
             </Link>
           </div>
 
-          <div className="absolute top-4 right-4">
-            <div className="flex flex-col items-end gap-2">
+          <div className="absolute top-2 right-2 sm:top-4 sm:right-4">
+            <div className="flex flex-col items-end gap-1 sm:gap-2">
               {/* Botones de acción */}
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1 sm:gap-3">
                 {/* Botón cambiar contraseña para todos los usuarios */}
                 <button
                   onClick={() => setShowPasswordModal(true)}
-                  className="px-3 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600 transition-colors"
+                  className="px-2 py-1 sm:px-3 sm:py-1 bg-blue-500 text-white text-xs sm:text-sm rounded hover:bg-blue-600 transition-colors flex items-center gap-1"
                   title="Cambiar mi contraseña"
                 >
-                  🔑 Mi Contraseña
+                  <span className="text-sm">🔑</span>
+                  <span className="hidden sm:inline">Mi Contraseña</span>
                 </button>
 
                 {user && simpleAuth.canManageUsers() && (
                   <Link 
                     to="/admin/users"
-                    className="px-3 py-1 bg-purple-500 text-white text-sm rounded hover:bg-purple-600 transition-colors"
+                    className="px-2 py-1 sm:px-3 sm:py-1 bg-purple-500 text-white text-xs sm:text-sm rounded hover:bg-purple-600 transition-colors flex items-center gap-1"
+                    title="Gestión de Usuarios"
                   >
-                    👑 Gestión Usuarios
+                    <span className="text-sm">👑</span>
+                    <span className="hidden sm:inline">Gestión Usuarios</span>
                   </Link>
                 )}
                 <button
                   onClick={handleLogout}
-                  className="px-3 py-1 bg-red-500 text-white text-sm rounded hover:bg-red-600 transition-colors"
+                  className="px-2 py-1 sm:px-3 sm:py-1 bg-red-500 text-white text-xs sm:text-sm rounded hover:bg-red-600 transition-colors flex items-center gap-1"
+                  title="Cerrar Sesión"
                 >
-                  Cerrar Sesión
+                  <span className="text-sm">🚪</span>
+                  <span className="hidden sm:inline">Cerrar Sesión</span>
                 </button>
               </div>
               
               {/* Información del usuario debajo */}
-              <span className="text-sm text-gray-600 bg-white px-2 py-1 rounded shadow-sm">
-                {user?.email} ({profile?.role_name})
+              <span className="text-xs sm:text-sm text-gray-600 bg-white px-1 py-0.5 sm:px-2 sm:py-1 rounded shadow-sm max-w-[200px] truncate">
+                <span className="hidden sm:inline">{user?.email} ({profile?.role_name})</span>
+                <span className="sm:hidden">{user?.email?.split('@')[0]}</span>
               </span>
             </div>
           </div>
           
-          <div className="flex flex-col items-center text-center gap-4">
+          <div className="flex flex-col items-center text-center gap-2 sm:gap-4 mt-16 sm:mt-0">
             {/* Branding y título */}
-            <div className="flex flex-col items-center gap-4">
+            <div className="flex flex-col items-center gap-2 sm:gap-4">
               <div className="flex-shrink-0">
-                <div className="w-20 h-20 bg-white rounded-xl flex items-center justify-center shadow-lg border-2 border-primary-200">
+                <div className="w-12 h-12 sm:w-20 sm:h-20 bg-white rounded-xl flex items-center justify-center shadow-lg border-2 border-primary-200">
                   <img 
                     src="/senpa-logo.png" 
                     alt="SENPA Logo" 
-                    className="w-16 h-16 object-contain"
+                    className="w-8 h-8 sm:w-16 sm:h-16 object-contain"
                     onError={(e) => {
                       e.currentTarget.style.display = 'none';
                       const nextSibling = e.currentTarget.nextElementSibling as HTMLElement;
@@ -326,33 +334,46 @@ const EnvironmentalDashboard: React.FC = () => {
                   </div>
                 </div>
               </div>
-              <div className="text-center">
-                <h1 className="dashboard-title text-balance">
-                  Dashboard Ambiental SENPA
+              <div className="text-center px-2">
+                <h1 className="text-lg sm:text-2xl lg:text-3xl font-bold text-neutral-800 leading-tight">
+                  <span className="block sm:inline">Dashboard Ambiental</span> <span className="block sm:inline text-primary-600">SENPA</span>
                 </h1>
-                <p className="dashboard-subtitle mt-1">
+                <p className="text-xs sm:text-sm lg:text-base text-neutral-600 mt-1 max-w-md mx-auto">
                   Sistema de Monitoreo de Operaciones Ambientales
                 </p>
-                <div className="flex items-center justify-center gap-4 mt-3">
-                  <time className="text-sm text-neutral-500">
-                    {new Date().toLocaleDateString('es-ES', { 
-                      weekday: 'long', 
-                      year: 'numeric', 
-                      month: 'long', 
-                      day: 'numeric' 
-                    })}
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4 mt-2 sm:mt-3">
+                  <time className="text-xs sm:text-sm text-neutral-500 text-center">
+                    <span className="hidden sm:inline">
+                      {new Date().toLocaleDateString('es-ES', { 
+                        weekday: 'long', 
+                        year: 'numeric', 
+                        month: 'long', 
+                        day: 'numeric' 
+                      })}
+                    </span>
+                    <span className="sm:hidden">
+                      {new Date().toLocaleDateString('es-ES', { 
+                        day: '2-digit', 
+                        month: '2-digit', 
+                        year: '2-digit'
+                      })}
+                    </span>
                   </time>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1 sm:gap-2">
                     <div className={`w-2 h-2 rounded-full transition-colors duration-300 ${loading ? 'bg-warning-400 animate-pulse' : 'bg-success-500'}`}></div>
-                    <span className="text-sm font-medium text-neutral-700">
-                      {environmentalCases.filter(c => c.fecha && c.fecha.trim()).length} casos válidos
+                    <span className="text-xs sm:text-sm font-medium text-neutral-700 text-center">
+                      {environmentalCases.filter(c => c.fecha && c.fecha.trim()).length} casos
+                      <span className="hidden sm:inline"> válidos</span>
                       {environmentalCases.length !== environmentalCases.filter(c => c.fecha && c.fecha.trim()).length && (
-                        <span className="text-neutral-500 ml-1">
+                        <span className="text-neutral-500 ml-1 hidden sm:inline">
                           ({environmentalCases.length - environmentalCases.filter(c => c.fecha && c.fecha.trim()).length} sin fecha)
                         </span>
                       )}
                       {loading && (
-                        <span className="text-neutral-500 ml-1">(actualizando...)</span>
+                        <span className="text-neutral-500 ml-1">
+                          <span className="hidden sm:inline">(actualizando...)</span>
+                          <span className="sm:hidden">...</span>
+                        </span>
                       )}
                     </span>
                   </div>
@@ -361,8 +382,8 @@ const EnvironmentalDashboard: React.FC = () => {
             </div>
 
             {/* Controles de acción */}
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-              {/* Info de última actualización */}
+            <div className="flex flex-col items-center justify-center gap-2 sm:gap-3">
+              {/* Info de última actualización - Solo desktop */}
               <div className="hidden lg:block text-center">
                 <div className="text-xs text-neutral-500 mb-1">
                   Última actualización
@@ -380,59 +401,61 @@ const EnvironmentalDashboard: React.FC = () => {
                 )}
               </div>
 
-              {/* Botones de control */}
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={toggleAutoRefresh}
-                  className={`btn-sm ${autoRefresh ? 'btn-primary' : 'btn-outline'} min-w-0`}
-                  title={autoRefresh ? 'Pausar auto-refresh' : 'Activar auto-refresh'}
-                >
-                  <span className="text-base">{autoRefresh ? '⏸️' : '▶️'}</span>
-                  <span className="hidden sm:inline ml-2">
-                    {autoRefresh ? 'Pausar' : 'Auto'}
-                  </span>
-                </button>
+              {/* Botones de control - Dos filas en móvil */}
+              <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-2">
+                {/* Primera fila de botones */}
+                <div className="flex items-center gap-1 sm:gap-2">
+                  <button
+                    onClick={toggleAutoRefresh}
+                    className={`btn-sm ${autoRefresh ? 'btn-primary' : 'btn-outline'} min-w-0 px-2 py-1`}
+                    title={autoRefresh ? 'Pausar auto-refresh' : 'Activar auto-refresh'}
+                  >
+                    <span className="text-sm">{autoRefresh ? '⏸️' : '▶️'}</span>
+                    <span className="hidden md:inline ml-1 text-xs">
+                      {autoRefresh ? 'Pausar' : 'Auto'}
+                    </span>
+                  </button>
+                  
+                  <button
+                    onClick={handleRefresh}
+                    disabled={loading}
+                    className="btn-sm btn-outline min-w-0 px-2 py-1"
+                    title="Actualizar datos"
+                  >
+                    <span className={`text-sm ${loading ? 'animate-spin' : ''}`}>🔄</span>
+                    <span className="hidden md:inline ml-1 text-xs">
+                      {loading ? 'Cargando...' : 'Actualizar'}
+                    </span>
+                  </button>
+                  
+                  <button
+                    onClick={() => setSettingsOpen(true)}
+                    className="btn-sm btn-ghost min-w-0 px-2 py-1"
+                    title="Configuración"
+                  >
+                    <span className="text-sm">⚙️</span>
+                    <span className="hidden xl:inline ml-1 text-xs">Config</span>
+                  </button>
+                </div>
                 
-                <button
-                  onClick={handleRefresh}
-                  disabled={loading}
-                  className="btn-sm btn-outline min-w-0"
-                  title="Actualizar datos"
-                >
-                  <span className={`text-base ${loading ? 'animate-spin' : ''}`}>🔄</span>
-                  <span className="hidden sm:inline ml-2">
-                    {loading ? 'Cargando...' : 'Actualizar'}
-                  </span>
-                </button>
-                
-                <button
-                  onClick={() => setSettingsOpen(true)}
-                  className="btn-sm btn-ghost min-w-0"
-                  title="Configuración"
-                >
-                  <span className="text-base">⚙️</span>
-                  <span className="hidden lg:inline ml-2">Configuración</span>
-                </button>
-                
+                {/* Segunda fila de botones - Mapas y gráficos */}
                 {permissions.canViewRecords && (
-                  <Link to="/detainees-map" className="btn-sm btn-secondary min-w-0" title="Ver Mapa de Calor de Detenidos">
-                    <span className="text-base">👥</span>
-                    <span className="hidden lg:inline ml-2">Detenidos</span>
-                  </Link>
-                )}
+                  <div className="flex items-center gap-1 sm:gap-2">
+                    <Link to="/detainees-map" className="btn-sm btn-secondary min-w-0 px-2 py-1" title="Ver Mapa de Calor de Detenidos">
+                      <span className="text-sm">👥</span>
+                      <span className="hidden xl:inline ml-1 text-xs">Detenidos</span>
+                    </Link>
 
-                {permissions.canViewRecords && (
-                  <Link to="/vehicles-map" className="btn-sm btn-secondary min-w-0" title="Ver Mapa de Vehículos Detenidos">
-                    <span className="text-base">🚗</span>
-                    <span className="hidden lg:inline ml-2">Vehículos</span>
-                  </Link>
-                )}
+                    <Link to="/vehicles-map" className="btn-sm btn-secondary min-w-0 px-2 py-1" title="Ver Mapa de Vehículos Detenidos">
+                      <span className="text-sm">🚗</span>
+                      <span className="hidden xl:inline ml-1 text-xs">Vehículos</span>
+                    </Link>
 
-                {permissions.canViewRecords && (
-                  <Link to="/chart-builder" className="btn-sm btn-primary min-w-0" title="Constructor de Gráficos">
-                    <span className="text-base">📊</span>
-                    <span className="hidden lg:inline ml-2">Gráficos</span>
-                  </Link>
+                    <Link to="/chart-builder" className="btn-sm btn-primary min-w-0 px-2 py-1" title="Constructor de Gráficos">
+                      <span className="text-sm">📊</span>
+                      <span className="hidden xl:inline ml-1 text-xs">Gráficos</span>
+                    </Link>
+                  </div>
                 )}
               </div>
             </div>

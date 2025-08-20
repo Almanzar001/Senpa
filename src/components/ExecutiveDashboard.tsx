@@ -273,7 +273,7 @@ const ExecutiveDashboard: React.FC = () => {
   if (!cases || cases.length === 0) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-        <div className="max-w-7xl mx-auto px-6 py-8">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-8">
           <div className="flex items-center justify-between mb-8">
             <div className="flex items-center">
               {/* Logo SENPA */}
@@ -371,17 +371,17 @@ const ExecutiveDashboard: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-8">
+        {/* Header - Mobile Optimized */}
+        <div className="flex flex-col sm:flex-row items-center justify-between mb-4 sm:mb-8 gap-4">
+          <div className="flex flex-col sm:flex-row items-center w-full sm:w-auto">
             {/* Logo SENPA */}
-            <div className="flex-shrink-0 mr-4">
-              <div className="w-16 h-16 bg-white rounded-xl flex items-center justify-center shadow-lg border-2 border-slate-200">
+            <div className="flex-shrink-0 mb-2 sm:mb-0 sm:mr-4">
+              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-white rounded-xl flex items-center justify-center shadow-lg border-2 border-slate-200">
                 <img 
                   src="/senpa-logo.png" 
                   alt="SENPA Logo" 
-                  className="w-12 h-12 object-contain"
+                  className="w-8 h-8 sm:w-12 sm:h-12 object-contain"
                   onError={(e) => {
                     e.currentTarget.style.display = 'none';
                     const nextSibling = e.currentTarget.nextElementSibling as HTMLElement;
@@ -395,21 +395,31 @@ const ExecutiveDashboard: React.FC = () => {
                 </div>
               </div>
             </div>
-            <div>
-              <h1 className="text-3xl font-bold text-slate-800 mb-2">
-                Dashboard Ejecutivo SENPA
+            <div className="text-center sm:text-left">
+              <h1 className="text-lg sm:text-2xl lg:text-3xl font-bold text-slate-800 mb-1 sm:mb-2">
+                <span className="block sm:inline">Dashboard Ejecutivo</span> <span className="block sm:inline text-primary-600">SENPA</span>
               </h1>
-              <p className="text-slate-600 text-lg">
-                Resumen ejecutivo - {new Date().toLocaleDateString('es-ES', { 
-                  weekday: 'long', 
-                  year: 'numeric', 
-                  month: 'long', 
-                  day: 'numeric' 
-                })}
+              <p className="text-sm sm:text-base lg:text-lg text-slate-600">
+                <span className="hidden sm:inline">Resumen ejecutivo - </span>
+                <span className="hidden lg:inline">
+                  {new Date().toLocaleDateString('es-ES', { 
+                    weekday: 'long', 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                  })}
+                </span>
+                <span className="lg:hidden">
+                  {new Date().toLocaleDateString('es-ES', { 
+                    day: '2-digit', 
+                    month: '2-digit', 
+                    year: '2-digit'
+                  })}
+                </span>
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1 sm:gap-3 flex-wrap justify-center">
             {/* Map Buttons */}
             <Tooltip title="Mapa de Detenidos">
               <Link to="/detainees-map?from=executive">
@@ -418,12 +428,14 @@ const ExecutiveDashboard: React.FC = () => {
                   sx={{
                     backgroundColor: 'rgba(239, 68, 68, 0.1)',
                     color: 'rgb(239, 68, 68)',
+                    width: { xs: '32px', sm: '40px' },
+                    height: { xs: '32px', sm: '40px' },
                     '&:hover': {
                       backgroundColor: 'rgba(239, 68, 68, 0.2)',
                     }
                   }}
                 >
-                  <PersonIcon fontSize="small" />
+                  <PersonIcon sx={{ fontSize: { xs: '16px', sm: '20px' } }} />
                 </IconButton>
               </Link>
             </Tooltip>
@@ -435,12 +447,14 @@ const ExecutiveDashboard: React.FC = () => {
                   sx={{
                     backgroundColor: 'rgba(249, 115, 22, 0.1)',
                     color: 'rgb(249, 115, 22)',
+                    width: { xs: '32px', sm: '40px' },
+                    height: { xs: '32px', sm: '40px' },
                     '&:hover': {
                       backgroundColor: 'rgba(249, 115, 22, 0.2)',
                     }
                   }}
                 >
-                  <CarIcon fontSize="small" />
+                  <CarIcon sx={{ fontSize: { xs: '16px', sm: '20px' } }} />
                 </IconButton>
               </Link>
             </Tooltip>
@@ -450,9 +464,12 @@ const ExecutiveDashboard: React.FC = () => {
               <Button
                 variant="outlined"
                 startIcon={<BackIcon />}
+                size="small"
                 sx={{ 
                   borderColor: 'rgb(71 85 105)',
                   color: 'rgb(71 85 105)',
+                  fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                  padding: { xs: '4px 8px', sm: '6px 16px' },
                   '&:hover': {
                     borderColor: 'rgb(51 65 85)',
                     color: 'rgb(51 65 85)',
@@ -460,7 +477,8 @@ const ExecutiveDashboard: React.FC = () => {
                   }
                 }}
               >
-                Dashboard Principal
+                <span className="hidden sm:inline">Dashboard Principal</span>
+                <span className="sm:hidden">Principal</span>
               </Button>
             </Link>
           </div>
@@ -468,44 +486,53 @@ const ExecutiveDashboard: React.FC = () => {
 
         {/* Date Filter Buttons */}
         <Card className="shadow-lg mb-6">
-          <CardContent className="p-4">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div>
-                <Typography variant="h6" className="font-bold text-slate-800 mb-1">
+          <CardContent className="p-2 sm:p-4">
+            <div className="flex flex-col items-start justify-between gap-2 sm:gap-4">
+              <div className="w-full text-center sm:text-left">
+                <Typography variant="h6" className="font-bold text-slate-800 mb-1 text-sm sm:text-base">
                   Filtro de Fecha
                 </Typography>
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="body2" color="text.secondary" className="text-xs sm:text-sm hidden sm:block">
                   Selecciona el período de tiempo para analizar
                 </Typography>
               </div>
               
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-1 sm:gap-2 justify-center sm:justify-start w-full">
                 <Button
                   variant={selectedDateFilter === 'all' ? 'contained' : 'outlined'}
                   startIcon={<CalendarIcon />}
                   onClick={() => handleDateFilterChange('all')}
+                  size="small"
                   sx={{
                     textTransform: 'none',
                     backgroundColor: selectedDateFilter === 'all' ? 'rgb(71 85 105)' : 'transparent',
                     borderColor: 'rgb(71 85 105)',
                     color: selectedDateFilter === 'all' ? 'white' : 'rgb(71 85 105)',
+                    fontSize: { xs: '0.7rem', sm: '0.875rem' },
+                    padding: { xs: '2px 6px', sm: '6px 16px' },
+                    minWidth: { xs: '50px', sm: '64px' },
                     '&:hover': {
                       backgroundColor: selectedDateFilter === 'all' ? 'rgb(51 65 85)' : 'rgba(71, 85, 105, 0.04)',
                     }
                   }}
                 >
-                  Todos
+                  <span className="hidden sm:inline">Todos</span>
+                  <span className="sm:hidden">Todo</span>
                 </Button>
                 
                 <Button
                   variant={selectedDateFilter === 'today' ? 'contained' : 'outlined'}
                   startIcon={<TodayIcon />}
                   onClick={() => handleDateFilterChange('today')}
+                  size="small"
                   sx={{
                     textTransform: 'none',
                     backgroundColor: selectedDateFilter === 'today' ? 'rgb(34 197 94)' : 'transparent',
                     borderColor: 'rgb(34 197 94)',
                     color: selectedDateFilter === 'today' ? 'white' : 'rgb(34 197 94)',
+                    fontSize: { xs: '0.7rem', sm: '0.875rem' },
+                    padding: { xs: '2px 6px', sm: '6px 16px' },
+                    minWidth: { xs: '40px', sm: '64px' },
                     '&:hover': {
                       backgroundColor: selectedDateFilter === 'today' ? 'rgb(21 128 61)' : 'rgba(34, 197, 94, 0.04)',
                     }
@@ -518,11 +545,15 @@ const ExecutiveDashboard: React.FC = () => {
                   variant={selectedDateFilter === 'yesterday' ? 'contained' : 'outlined'}
                   startIcon={<YesterdayIcon />}
                   onClick={() => handleDateFilterChange('yesterday')}
+                  size="small"
                   sx={{
                     textTransform: 'none',
                     backgroundColor: selectedDateFilter === 'yesterday' ? 'rgb(249 115 22)' : 'transparent',
                     borderColor: 'rgb(249 115 22)',
                     color: selectedDateFilter === 'yesterday' ? 'white' : 'rgb(249 115 22)',
+                    fontSize: { xs: '0.7rem', sm: '0.875rem' },
+                    padding: { xs: '2px 6px', sm: '6px 16px' },
+                    minWidth: { xs: '40px', sm: '64px' },
                     '&:hover': {
                       backgroundColor: selectedDateFilter === 'yesterday' ? 'rgb(194 65 12)' : 'rgba(249, 115, 22, 0.04)',
                     }
@@ -535,26 +566,31 @@ const ExecutiveDashboard: React.FC = () => {
                   variant={selectedDateFilter === 'thisMonth' ? 'contained' : 'outlined'}
                   startIcon={<CalendarIcon />}
                   onClick={() => handleDateFilterChange('thisMonth')}
+                  size="small"
                   sx={{
                     textTransform: 'none',
                     backgroundColor: selectedDateFilter === 'thisMonth' ? 'rgb(99 102 241)' : 'transparent',
                     borderColor: 'rgb(99 102 241)',
                     color: selectedDateFilter === 'thisMonth' ? 'white' : 'rgb(99 102 241)',
+                    fontSize: { xs: '0.7rem', sm: '0.875rem' },
+                    padding: { xs: '2px 6px', sm: '6px 16px' },
+                    minWidth: { xs: '50px', sm: '80px' },
                     '&:hover': {
                       backgroundColor: selectedDateFilter === 'thisMonth' ? 'rgb(79 70 229)' : 'rgba(99, 102, 241, 0.04)',
                     }
                   }}
                 >
-                  Este Mes
+                  <span className="hidden sm:inline">Este Mes</span>
+                  <span className="sm:hidden">Mes</span>
                 </Button>
               </div>
             </div>
             
             {/* Active Filter Indicator */}
             {selectedDateFilter !== 'all' && (
-              <Box className="mt-3 pt-3 border-t border-gray-100">
+              <Box className="mt-2 sm:mt-3 pt-2 sm:pt-3 border-t border-gray-100 text-center sm:text-left">
                 <Chip 
-                  label={`Filtro activo: ${
+                  label={`${
                     selectedDateFilter === 'today' ? 'Hoy' :
                     selectedDateFilter === 'yesterday' ? 'Ayer' :
                     selectedDateFilter === 'thisMonth' ? 'Este Mes' : ''
@@ -562,6 +598,10 @@ const ExecutiveDashboard: React.FC = () => {
                   color="primary"
                   variant="outlined"
                   size="small"
+                  sx={{
+                    fontSize: { xs: '0.65rem', sm: '0.75rem' },
+                    height: { xs: '20px', sm: '24px' }
+                  }}
                 />
               </Box>
             )}
@@ -569,7 +609,7 @@ const ExecutiveDashboard: React.FC = () => {
         </Card>
 
         {/* Main Metrics Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-3 sm:gap-6 mb-4 sm:mb-8">
           {metricCards.map((metric, index) => {
             const IconComponent = metric.icon;
             return (
@@ -577,20 +617,23 @@ const ExecutiveDashboard: React.FC = () => {
                 key={index} 
                 className="metric-card cursor-pointer hover:transform hover:scale-105 hover:shadow-lg transition-all duration-200"
               >
-                <div className="flex flex-col items-center justify-center text-center h-full space-y-4">
-                  <div className={`w-16 h-16 ${metric.iconBg} rounded-xl flex items-center justify-center group-hover:shadow-md`}>
-                    <IconComponent className={`${metric.iconColor}`} style={{ fontSize: 28 }} />
+                <div className="flex flex-col items-center justify-center text-center h-full space-y-2 sm:space-y-4 p-2 sm:p-4">
+                  <div className={`w-10 h-10 sm:w-16 sm:h-16 ${metric.iconBg} rounded-xl flex items-center justify-center group-hover:shadow-md`}>
+                    <IconComponent className={`${metric.iconColor} text-lg sm:text-2xl`} />
                   </div>
                   
-                  <div className="space-y-2">
-                    <div className="metric-label">
+                  <div className="space-y-1 sm:space-y-2">
+                    <div className="text-xs sm:text-sm font-semibold text-neutral-700 leading-tight">
                       {metric.title}
                     </div>
-                    <div className="metric-value">
+                    <div className="text-lg sm:text-2xl font-bold text-neutral-900">
                       {metric.value.toLocaleString()}
                     </div>
-                    <p className="text-xs text-neutral-600 leading-relaxed">
+                    <p className="text-xs text-neutral-600 leading-relaxed hidden sm:block">
                       {metric.description}
+                    </p>
+                    <p className="text-xs text-neutral-600 leading-tight sm:hidden">
+                      {metric.description.split(' ').slice(0, 3).join(' ')}...
                     </p>
                   </div>
                 </div>
@@ -600,9 +643,9 @@ const ExecutiveDashboard: React.FC = () => {
         </div>
 
         {/* Charts Section */}
-        <Card className="shadow-xl mb-8">
-          <CardContent className="p-6">
-            <Typography variant="h5" className="font-bold text-slate-800 mb-6">
+        <Card className="shadow-xl mb-4 sm:mb-8">
+          <CardContent className="p-3 sm:p-6">
+            <Typography variant="h5" className="font-bold text-slate-800 mb-3 sm:mb-6 text-lg sm:text-xl text-center sm:text-left">
               Análisis Detallado
             </Typography>
             <EnvironmentalCharts 
@@ -623,8 +666,8 @@ const ExecutiveDashboard: React.FC = () => {
 
         {/* Secondary Indicators */}
         <Card className="shadow-xl">
-          <CardContent className="p-6">
-            <Typography variant="h5" className="font-bold text-slate-800 mb-6">
+          <CardContent className="p-3 sm:p-6">
+            <Typography variant="h5" className="font-bold text-slate-800 mb-3 sm:mb-6 text-lg sm:text-xl text-center sm:text-left">
               Indicadores Secundarios
             </Typography>
             <SecondaryIndicators 
