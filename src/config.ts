@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 
 // Configuración del Dashboard SENPA
 export const CONFIG = {
-  // Supabase Configuration - usando service role para evitar restricciones
+  // Supabase Configuration - usar directamente la URL de producción en desarrollo también
   SUPABASE_URL: 'https://nnsupabasenn.coman2uniformes.com',
   SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyAgCiAgICAicm9sZSI6ICJzZXJ2aWNlX3JvbGUiLAogICAgImlzcyI6ICJzdXBhYmFzZS1kZW1vIiwKICAgICJpYXQiOiAxNjQxNzY5MjAwLAogICAgImV4cCI6IDE3OTk1MzU2MDAKfQ.DaYlNEoUrrEn2Ig7tqibS-PHK5vgusbcbo7X36XVt4Q',
   

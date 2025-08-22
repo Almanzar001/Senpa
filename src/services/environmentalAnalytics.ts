@@ -1,4 +1,6 @@
 import { type SheetData } from './googleSheets';
+import { parseDate, isDateInRange, toISODate } from '../utils/dateUtils';
+import type { UnifiedFilters } from '../types/filters';
 
 export interface EnvironmentalCase {
   numeroCaso: string;
@@ -14,8 +16,9 @@ export interface EnvironmentalCase {
   incautaciones: string[];
   notificados: string; // Text field with names
   notificadosCount?: number; // Count for metrics
-  procuraduria: boolean;
+  procuraduria: string; // Campo string que contiene 'SI' o 'NO'
   resultado?: string;
+  nota?: string; // Campo nota de la base de datos
   coordenadas?: {
     lat: number;
     lng: number;
@@ -35,17 +38,9 @@ export interface EnvironmentalMetrics {
   regiones: number;
 }
 
-export interface EnvironmentalFilters {
-  dateFrom: string;
-  dateTo: string;
-  provincia: string[];
-  division: string[];
-  region: string[];
-  tipoActividad: string[];
-  areaTemática: string[];
-  searchText: string;
-  activeDateFilter?: string; // ID del filtro de fecha activo
-  isExecutiveView?: boolean; // Flag para vista ejecutiva
+export interface EnvironmentalFilters extends UnifiedFilters {
+  // Mantener retrocompatibilidad mientras migramos
+  division: string[]; // Mapea a localidad en UnifiedFilters
 }
 
 class EnvironmentalAnalyticsService {
@@ -83,8 +78,11 @@ class EnvironmentalAnalyticsService {
       const headers = sheet.data[0] as string[];
       const rows = sheet.data.slice(1);
       
-      console.log(`🔍 Analytics: Procesando hoja "${sheet.name}"`);
-      console.log('🔍 Analytics: Headers disponibles:', headers);
+      // Log optimizado para debugging controlado
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`🔍 Analytics: Procesando hoja "${sheet.name}"`);
+        console.log('🔍 Analytics: Headers disponibles:', headers);
+      }
       
       // Encontrar columnas importantes
       const numeroCasoCol = headers.findIndex(h => 
@@ -94,7 +92,9 @@ class EnvironmentalAnalyticsService {
       );
       
       if (numeroCasoCol === -1) {
-        console.log(`🔍 Analytics: Saltando hoja "${sheet.name}" - no tiene columna numeroCaso`);
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`🔍 Analytics: Saltando hoja "${sheet.name}" - no tiene columna numeroCaso`);
+        }
         return; // Skip sheets without numeroCaso
       }
       
@@ -112,13 +112,15 @@ class EnvironmentalAnalyticsService {
         h.toLowerCase().includes('ubicacion')
       );
       
-      console.log(`🔍 Analytics: Columnas encontradas en "${sheet.name}":`, {
-        numeroCaso: numeroCasoCol,
-        fecha: fechaCol,
-        provincia: provinciaCol,
-        region: regionCol,
-        localidad: localidadCol
-      });
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`🔍 Analytics: Columnas encontradas en "${sheet.name}":`, {
+          numeroCaso: numeroCasoCol,
+          fecha: fechaCol,
+          provincia: provinciaCol,
+          region: regionCol,
+          localidad: localidadCol
+        });
+      }
       const tipoActividadCol = headers.findIndex(h => {
         const hLower = h.toLowerCase();
         return hLower.includes('tipo') && (hLower.includes('actividad') || hLower.includes('operacion'));
@@ -183,7 +185,7 @@ class EnvironmentalAnalyticsService {
             incautaciones: [],
             notificados: notificadosCol >= 0 ? String(row[notificadosCol] || '').trim() : '', // Keep as text
             notificadosCount: this.countNotificados(notificadosCol >= 0 ? row[notificadosCol] : ''), // Count for metrics
-            procuraduria: procuraduriaCol >= 0 ? String(row[procuraduriaCol] || '').toLowerCase() === 'si' : false,
+            procuraduria: procuraduriaCol >= 0 ? String(row[procuraduriaCol] || '').toUpperCase() === 'SI' ? 'SI' : 'NO' : 'NO',
             nota: notaCol >= 0 ? String(row[notaCol] || '').trim() : '' // Add nota field from database
           };
           
@@ -231,7 +233,7 @@ class EnvironmentalAnalyticsService {
           if (procuraduriaCol >= 0 && row[procuraduriaCol]) {
             const procuraduriaValue = String(row[procuraduriaCol] || '').toLowerCase() === 'si';
             if (procuraduriaValue) {
-              envCase.procuraduria = true;
+              envCase.procuraduria = 'SI';
             }
           }
         }
@@ -325,6 +327,11 @@ class EnvironmentalAnalyticsService {
         h.toLowerCase().trim() === 'color' ||
         h.toLowerCase().includes('color')
       );
+      const provinciaMunicipioCol = headers.findIndex(h => 
+        h.toLowerCase().includes('provinciamunicip') ||
+        h.toLowerCase().includes('provincia_municip') ||
+        h.toLowerCase().includes('provinciamunicipio')
+      );
       
       if (tipoCol >= 0 && row[tipoCol]) {
         envCase.vehiculosDetenidos++;
@@ -332,7 +339,8 @@ class EnvironmentalAnalyticsService {
         envCase.vehiculosInfo.push({
           tipo: String(row[tipoCol] || ''),
           marca: marcaCol >= 0 ? String(row[marcaCol] || '') : 'No especificada',
-          color: colorCol >= 0 ? String(row[colorCol] || '') : 'No especificado'
+          color: colorCol >= 0 ? String(row[colorCol] || '') : 'No especificado',
+          provinciaMunicipio: provinciaMunicipioCol >= 0 ? String(row[provinciaMunicipioCol] || '') : ''
         });
       }
     }
@@ -452,7 +460,9 @@ class EnvironmentalAnalyticsService {
 
     const notificados = filteredCases.reduce((total, c) => total + (c.notificadosCount || 0), 0);
     
-    const procuraduria = filteredCases.filter(c => c.procuraduria).length;
+    const procuraduria = filteredCases.filter(c => 
+      c.procuraduria === 'SI'
+    ).length;
     
     
     const regiones = new Set(
@@ -474,9 +484,85 @@ class EnvironmentalAnalyticsService {
     };
   }
 
+  // Calcular métricas para dashboard ejecutivo (formato simplificado)
+  calculateExecutiveMetrics(cases: EnvironmentalCase[], filters?: EnvironmentalFilters) {
+    const filteredCases = this.applyFilters(cases, filters);
+
+    let operativos = 0;
+    let patrullas = 0;
+    let detenidos = 0;
+    let vehiculos = 0;
+    let procuraduria = 0;
+    let notificados = 0;
+
+    filteredCases.forEach((caso) => {
+      // Contar operativos
+      if (caso.tipoActividad && caso.tipoActividad.toLowerCase().includes('operativo')) {
+        operativos++;
+      }
+      
+      // Contar patrullas
+      if (caso.tipoActividad && caso.tipoActividad.toLowerCase().includes('patrulla')) {
+        patrullas++;
+      }
+      
+      // Contar detenidos
+      if (caso.detenidos && caso.detenidos > 0) {
+        detenidos += caso.detenidos;
+      }
+      
+      // Contar vehículos
+      if (caso.vehiculosDetenidos && caso.vehiculosDetenidos > 0) {
+        vehiculos += caso.vehiculosDetenidos;
+      }
+      
+      // Contar casos con procuraduría
+      if (caso.procuraduria === 'SI') {
+        procuraduria++;
+      }
+      
+      // Contar notificados
+      if (caso.notificadosCount && caso.notificadosCount > 0) {
+        notificados += caso.notificadosCount;
+      } else if (caso.notificados && String(caso.notificados).trim() !== '') {
+        // Fallback: contar por separadores si no hay notificadosCount
+        const notificadosStr = String(caso.notificados).trim();
+        const names = notificadosStr.split(/[,;|\n\r]+/)
+          .map(name => name.trim())
+          .filter(name => name.length > 0 && name.toLowerCase() !== 'n/a' && name.toLowerCase() !== 'na');
+        notificados += names.length;
+      }
+    });
+
+    return {
+      operativos,
+      patrullas,
+      detenidos,
+      vehiculos,
+      procuraduria,
+      notificados
+    };
+  }
+
   // Aplicar filtros a los casos
   applyFilters(cases: EnvironmentalCase[], filters?: EnvironmentalFilters): EnvironmentalCase[] {
     if (!filters) {
+      return cases;
+    }
+
+    // Verificar si no hay filtros activos (caso 'all')
+    const hasActiveFilters = !!(
+      filters.dateFrom || 
+      filters.dateTo ||
+      (filters.provincia && filters.provincia.length > 0) ||
+      (filters.region && filters.region.length > 0) ||
+      (filters.tipoActividad && filters.tipoActividad.length > 0) ||
+      (filters.areaTemática && filters.areaTemática.length > 0) ||
+      (filters.searchText && filters.searchText.trim())
+    );
+
+    if (!hasActiveFilters) {
+      console.log('🔍 ApplyFilters: No hay filtros activos, devolviendo todos los casos');
       return cases;
     }
 
@@ -526,100 +612,26 @@ class EnvironmentalAnalyticsService {
               tipoActividad: envCase.tipoActividad,
               localidad: envCase.localidad
             });
-          }      // Filtro de fecha
+          }      // Filtro de fecha - usando utilidades centralizadas
       if (filters.dateFrom || filters.dateTo) {
-        let caseDate: Date | null = null;
-        
-        if (envCase.fecha) {
-          const dateStr = envCase.fecha.trim();
-          
-          // Try to parse the date in multiple formats
-          // Format 1: YYYY-MM-DD (ISO format)
-          if (dateStr.match(/^\d{4}-\d{1,2}-\d{1,2}/)) {
-            // Handle YYYY-MM-DD format, ensuring it's parsed as local time
-            // by constructing date from parts. This avoids timezone issues.
-            const dateOnly = dateStr.substring(0, 10);
-            const parts = dateOnly.split('-');
-            if (parts.length === 3) {
-              const year = parseInt(parts[0], 10);
-              const month = parseInt(parts[1], 10);
-              const day = parseInt(parts[2], 10);
-              if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
-                caseDate = new Date(year, month - 1, day);
-              }
-            }
-          }
-          // Format 2: D/M/YYYY, DD/MM/YYYY, D/MM/YYYY, DD/M/YYYY (formato europeo/dominicano)
-          else if (dateStr.match(/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}$/)) {
-            const parts = dateStr.split(/[\/\-]/);
-            if (parts.length === 3) {
-              const day = parseInt(parts[0], 10);    // Primer número es el DÍA
-              const month = parseInt(parts[1], 10);  // Segundo número es el MES  
-              const year = parseInt(parts[2], 10);
-              if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
-                // Constructing date from parts ensures it's in local timezone
-                caseDate = new Date(year, month - 1, day);
-                
-                // Log específico para debugging de parsing de fechas
-                if (envCase.region === '07' || envCase.provincia.includes('Sánchez')) {
-                  console.log(`🗓️ PARSING DD/MM/YYYY: "${dateStr}" → Día:${day}, Mes:${month}, Año:${year} → ${caseDate.toLocaleDateString('es-ES')}`);
-                }
-              }
-            }
-          }
-          // Format 3: Try direct parsing as fallback
-          if (!caseDate || isNaN(caseDate.getTime())) {
-            // Fallback: For 'YYYY-MM-DD', replace '-' with '/' to encourage local time parsing
-            const localDateStr = dateStr.match(/^\d{4}-\d{1,2}-\d{1,2}$/)
-              ? dateStr.replace(/-/g, '/')
-              : dateStr;
-            const testDate = new Date(localDateStr);
-            if (!isNaN(testDate.getTime())) {
-              caseDate = testDate;
-            }
-          }
-        }
+        const caseDate = parseDate(envCase.fecha);
         
         if (caseDate && !isNaN(caseDate.getTime())) {
-          // Normalize caseDate to the start of its day for consistent comparison
-          caseDate.setHours(0, 0, 0, 0);
-          
-          // Log specific cases for debugging
+          // Log específico para debugging de parsing de fechas
           if (envCase.region === '07' || envCase.provincia.includes('Sánchez')) {
-            console.log(`📅 FECHA PARSEADA:`, {
+            console.log(`🗓️ FECHA PARSEADA:`, {
               fechaOriginal: envCase.fecha,
               fechaParseada: caseDate.toLocaleDateString('es-ES'),
-              fechaISO: caseDate.toISOString().split('T')[0],
+              fechaISO: toISODate(caseDate),
               provincia: envCase.provincia,
               region: envCase.region
             });
           }
           
-          // Ensure filter dates are parsed in local timezone correctly
-          const filterFromDate = filters.dateFrom ? new Date(`${filters.dateFrom}T00:00:00`) : null;
-          const filterToDate = filters.dateTo ? new Date(`${filters.dateTo}T23:59:59.999`) : null;
-          
-          // Log filter dates for debugging
-          if ((envCase.region === '07' || envCase.provincia.includes('Sánchez')) && (filterFromDate || filterToDate)) {
-            console.log(`🗓️ FILTROS DE FECHA:`, {
-              filterFromDate: filterFromDate?.toLocaleDateString('es-ES'),
-              filterToDate: filterToDate?.toLocaleDateString('es-ES'),
-              filterFromDateISO: filters.dateFrom,
-              filterToDateISO: filters.dateTo,
-              casoFecha: caseDate.toLocaleDateString('es-ES'),
-              casoFechaISO: caseDate.toISOString().split('T')[0]
-            });
-          }
-
-          if (filterFromDate && caseDate < filterFromDate) {
+          // Validar si está en el rango usando utilidad centralizada
+          if (!isDateInRange(caseDate, filters.dateFrom, filters.dateTo)) {
             if (envCase.region === '07' || envCase.provincia.includes('Sánchez')) {
-              console.log(`🗓️ REJECT DATE FROM: Case ${envCase.fecha} is before ${filters.dateFrom}:`, envCase);
-            }
-            return false;
-          }
-          if (filterToDate && caseDate > filterToDate) {
-            if (envCase.region === '07' || envCase.provincia.includes('Sánchez')) {
-              console.log(`🗓️ REJECT DATE TO: Case ${envCase.fecha} is after ${filters.dateTo}:`, envCase);
+              console.log(`🗓️ REJECT DATE RANGE: Case ${envCase.fecha} is outside range ${filters.dateFrom} - ${filters.dateTo}:`, envCase);
             }
             return false;
           }
@@ -1054,18 +1066,22 @@ class EnvironmentalAnalyticsService {
     // Validaciones básicas
     if (!envCase.numeroCaso || envCase.numeroCaso.trim() === '') {
       errors.push('Número de caso es requerido');
+    } else {
+      // Validar formato de numeroCaso
+      const numeroPattern = /^[A-Z0-9\-]+$/i;
+      if (!numeroPattern.test(envCase.numeroCaso.trim())) {
+        errors.push('Número de caso tiene formato inválido');
+      }
     }
     
     if (!envCase.fecha || envCase.fecha.trim() === '') {
       errors.push('Fecha es requerida');
-    }
-    
-    if (!envCase.provincia || envCase.provincia.trim() === '') {
-      errors.push('Provincia es requerida');
-    }
-    
-    if (!envCase.localidad || envCase.localidad.trim() === '') {
-      errors.push('Localidad es requerida');
+    } else {
+      // Validar que la fecha sea parseable
+      const parsedDate = parseDate(envCase.fecha);
+      if (!parsedDate) {
+        errors.push(`Fecha inválida: ${envCase.fecha}`);
+      }
     }
     
     // Validaciones de tipos de datos
@@ -1081,11 +1097,153 @@ class EnvironmentalAnalyticsService {
       errors.push('Notificados debe ser texto válido');
     }
     
-    if (typeof envCase.procuraduria !== 'boolean') {
-      errors.push('Procuraduría debe ser verdadero o falso');
+    if (typeof envCase.procuraduria !== 'string') {
+      errors.push('Procuraduría debe ser un valor válido (SI/NO)');
+    } else if (envCase.procuraduria !== 'SI' && envCase.procuraduria !== 'NO') {
+      errors.push('Procuraduría debe ser "SI" o "NO"');
+    }
+    
+    // Validaciones de consistencia
+    if (envCase.incautaciones && Array.isArray(envCase.incautaciones)) {
+      if (envCase.incautaciones.length > 0 && envCase.detenidos === 0 && envCase.vehiculosDetenidos === 0) {
+        console.warn(`⚠️ Caso ${envCase.numeroCaso}: Tiene incautaciones pero no detenidos ni vehículos`);
+      }
     }
     
     return errors;
+  }
+
+  // Función para validar integridad de datos entre tablas relacionadas
+  validateDataIntegrity(sheetsData: SheetData[]): { 
+    errors: string[], 
+    warnings: string[], 
+    stats: any 
+  } {
+    const errors: string[] = [];
+    const warnings: string[] = [];
+    const stats = {
+      totalCases: 0,
+      casesWithIssues: 0,
+      duplicatedCaseNumbers: [] as string[],
+      orphanedRecords: [] as string[],
+      missingDates: 0,
+      invalidDates: 0,
+      tablesAnalyzed: sheetsData.length
+    };
+
+    if (!sheetsData || sheetsData.length === 0) {
+      errors.push('No hay datos para validar');
+      return { errors, warnings, stats };
+    }
+
+    // Mapas para rastrear casos y registros relacionados
+    const caseNumbers = new Set<string>();
+    const caseCountPerTable: { [tableName: string]: number } = {};
+    const duplicates = new Map<string, number>();
+
+    sheetsData.forEach((sheet) => {
+      if (sheet.data.length <= 1) {
+        warnings.push(`Tabla "${sheet.name}" está vacía o solo tiene headers`);
+        return;
+      }
+      
+      const headers = sheet.data[0] as string[];
+      const rows = sheet.data.slice(1);
+      
+      caseCountPerTable[sheet.name] = rows.length;
+      
+      // Encontrar columna numerocaso
+      const numeroCasoCol = headers.findIndex(h => 
+        h.toLowerCase().includes('numerocaso') || 
+        h.toLowerCase().includes('numero_caso') ||
+        h.toLowerCase().includes('caso')
+      );
+      
+      const fechaCol = headers.findIndex(h => h.toLowerCase().includes('fecha'));
+      
+      if (numeroCasoCol === -1) {
+        warnings.push(`Tabla "${sheet.name}" no tiene columna numeroCaso`);
+        return;
+      }
+      
+      rows.forEach((row, rowIndex) => {
+        const numeroCaso = String(row[numeroCasoCol] || '').trim();
+        const fecha = fechaCol >= 0 ? String(row[fechaCol] || '').trim() : '';
+        
+        if (!numeroCaso) {
+          warnings.push(`Tabla "${sheet.name}", fila ${rowIndex + 2}: numeroCaso vacío`);
+          return;
+        }
+        
+        // Contar casos totales
+        stats.totalCases++;
+        
+        // Verificar duplicados
+        if (duplicates.has(numeroCaso)) {
+          duplicates.set(numeroCaso, duplicates.get(numeroCaso)! + 1);
+        } else {
+          duplicates.set(numeroCaso, 1);
+        }
+        
+        caseNumbers.add(numeroCaso);
+        
+        // Validar fechas
+        if (!fecha) {
+          stats.missingDates++;
+        } else {
+          const parsedDate = parseDate(fecha);
+          if (!parsedDate) {
+            stats.invalidDates++;
+            warnings.push(`Tabla "${sheet.name}", fila ${rowIndex + 2}: Fecha inválida "${fecha}"`);
+          }
+        }
+      });
+    });
+
+    // Identificar duplicados
+    duplicates.forEach((count, numeroCaso) => {
+      if (count > 1) {
+        stats.duplicatedCaseNumbers.push(numeroCaso);
+        warnings.push(`Número de caso duplicado: ${numeroCaso} (${count} veces)`);
+      }
+    });
+
+    // Estadísticas finales
+    stats.casesWithIssues = stats.duplicatedCaseNumbers.length + stats.missingDates + stats.invalidDates;
+    
+    // Log de resumen
+    console.log('🔍 Validación de integridad de datos:', {
+      tablas: Object.keys(caseCountPerTable),
+      registrosPorTabla: caseCountPerTable,
+      casosUnicos: caseNumbers.size,
+      duplicados: stats.duplicatedCaseNumbers.length,
+      fechasInvalidas: stats.invalidDates,
+      fechasFaltantes: stats.missingDates
+    });
+
+    return { errors, warnings, stats };
+  }
+
+  // Debug helper para analizar un caso específico
+  debugCase(numeroCaso: string): any {
+    const caseData = this.cases.get(numeroCaso);
+    
+    if (!caseData) {
+      console.warn(`🔍 Debug: Caso ${numeroCaso} no encontrado`);
+      return null;
+    }
+
+    console.group(`🔍 Debug Caso: ${numeroCaso}`);
+    console.log('Datos completos:', caseData);
+    console.log('Validaciones:', this.validateCase(caseData));
+    console.log('Fecha parseada:', parseDate(caseData.fecha));
+    console.log('Coordenadas:', caseData.coordenadas);
+    console.log('Detenidos info:', caseData.detenidosInfo);
+    console.log('Vehículos info:', caseData.vehiculosInfo);
+    console.log('Incautaciones info:', caseData.incautacionesInfo);
+    console.groupEnd();
+    
+    return caseData;
   }
 }
 

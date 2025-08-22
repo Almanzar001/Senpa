@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   Table,
   TableBody,
@@ -22,8 +22,8 @@ import {
   Edit as EditIcon,
   Delete as DeleteIcon,
   Search as SearchIcon,
-  Add as AddIcon,
-  Visibility as ViewIcon
+  Visibility as ViewIcon,
+  Clear as ClearIcon
 } from '@mui/icons-material';
 import type { TableType, NotaInformativa, Detenido, Vehiculo, Incautacion } from '../types/tableTypes';
 import { TABLE_METADATA } from '../types/tableTypes';
@@ -39,10 +39,8 @@ interface GenericTableProps {
   data: TableItem[];
   onUpdate: (item: TableItem) => void;
   onDelete: (id: string) => void;
-  onCreate: (item: TableItem) => void;
   loading?: boolean;
   title?: string;
-  allowCreate?: boolean;
 }
 
 const GenericTable: React.FC<GenericTableProps> = ({
@@ -50,67 +48,128 @@ const GenericTable: React.FC<GenericTableProps> = ({
   data,
   onUpdate,
   onDelete,
-  onCreate,
   loading = false,
-  title,
-  allowCreate = true
+  title
 }) => {
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(TABLE_CONFIG.defaultRowsPerPage);
+  const [rowsPerPage, setRowsPerPage] = useState(25); // Reducir filas por página para mejor performance
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [detailsModalOpen, setDetailsModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<TableItem | null>(null);
-  const [modalMode, setModalMode] = useState<'create' | 'edit'>('edit');
+
+  // Debounce search term para mejorar rendimiento
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+      setPage(0); // Reset page cuando cambia la búsqueda
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
   const permissions = usePermissions();
   const metadata = TABLE_METADATA[tableType];
 
   const getSearchableFields = (item: TableItem): any[] => {
-    const commonFields = [item.numeroCaso, item.fecha, item.provincia, item.localidad, item.region];
+    // Campos comunes - usar los nombres correctos de los campos
+    const commonFields = [
+      item.numeroCaso, 
+      item.fecha, 
+      (item as any).provinciamunicipio || (item as any).provincia, // Usar el campo correcto
+      (item as any).localidad, 
+      (item as any).region
+    ];
     
     switch (tableType) {
       case 'notas_informativas':
         const nota = item as NotaInformativa;
-        return [...commonFields, nota.tipoActividad, nota.areaTemática];
+        return [
+          ...commonFields, 
+          nota.tipoActividad, 
+          nota.areaTemática, 
+          nota.notificados, 
+          nota.procuraduria,
+          nota.resultado,
+          nota.observaciones
+        ];
       case 'detenidos':
         const detenido = item as Detenido;
-        return [...commonFields, detenido.nombre, detenido.motivoDetencion];
+        return [
+          ...commonFields, 
+          detenido.nombre, 
+          detenido.motivoDetencion, 
+          detenido.estadoProceso,
+          detenido.observaciones
+        ];
       case 'vehiculos':
         const vehiculo = item as Vehiculo;
-        return [...commonFields, vehiculo.tipo, vehiculo.marca, vehiculo.color, vehiculo.detalle];
+        return [
+          ...commonFields, 
+          vehiculo.tipo, 
+          vehiculo.marca, 
+          vehiculo.color, 
+          vehiculo.detalle,
+          vehiculo.observaciones
+        ];
       case 'incautaciones':
         const incautacion = item as Incautacion;
-        return [...commonFields, incautacion.tipoIncautacion, incautacion.descripcion];
+        return [
+          ...commonFields, 
+          incautacion.tipoIncautacion, 
+          incautacion.descripcion,
+          incautacion.cantidad,
+          incautacion.estado,
+          incautacion.custodio,
+          incautacion.observaciones
+        ];
       default:
         return commonFields;
     }
   };
 
-  // Filter data based on search term
+  // Filter data based on search term - mejorado para manejar valores nulos/undefined
   const filteredData = useMemo(() => {
-    if (!searchTerm.trim()) return data;
+    if (!debouncedSearchTerm.trim()) return data;
+
+    const searchTermLower = debouncedSearchTerm.toLowerCase().trim();
 
     return data.filter(item => {
       const searchFields = getSearchableFields(item);
-      return searchFields.some(field => 
-        String(field).toLowerCase().includes(searchTerm.toLowerCase())
-      );
+      return searchFields.some(field => {
+        // Manejar valores nulos, undefined, y tipos especiales
+        if (field === null || field === undefined) return false;
+        
+        // Convertir a string y limpiar
+        const fieldStr = String(field).toLowerCase();
+        
+        // Buscar coincidencias exactas y parciales
+        return fieldStr.includes(searchTermLower) ||
+               // Búsqueda por palabras individuales
+               searchTermLower.split(/\s+/).every(term => 
+                 term.length > 0 && fieldStr.includes(term)
+               );
+      });
     });
-  }, [data, searchTerm]);
+  }, [data, debouncedSearchTerm, tableType]);
 
   const getVisibleColumns = (): string[] => {
     switch (tableType) {
       case 'notas_informativas':
-        return ['numeroCaso', 'fecha', 'provincia', 'localidad', 'tipoActividad', 'notificados', 'procuraduria'];
+        // Si estamos filtrando por procuraduría, mostrar solo campos esenciales
+        if (title?.includes('Procuraduría')) {
+          return ['numeroCaso', 'fecha', 'provinciamunicipio', 'tipoActividad', 'procuraduria'];
+        }
+        return ['numeroCaso', 'fecha', 'provinciamunicipio', 'localidad', 'tipoActividad', 'notificados', 'procuraduria'];
       case 'detenidos':
-        return ['numeroCaso', 'fecha', 'provincia', 'localidad', 'nombre', 'motivoDetencion', 'estadoProceso'];
+        return ['numeroCaso', 'fecha', 'provinciamunicipio', 'nombre', 'motivoDetencion', 'estadoProceso'];
       case 'vehiculos':
-        return ['numeroCaso', 'tipo', 'marca', 'color', 'provinciaMunicipio', 'fecha'];
+        return ['numeroCaso', 'tipo', 'marca', 'color', 'provinciamunicipio', 'fecha'];
       case 'incautaciones':
-        return ['numeroCaso', 'fecha', 'provincia', 'localidad', 'tipoIncautacion', 'cantidad', 'estado'];
+        return ['numeroCaso', 'fecha', 'provinciamunicipio', 'tipoIncautacion', 'cantidad', 'estado'];
       default:
-        return ['numeroCaso', 'fecha', 'provincia', 'localidad'];
+        return ['numeroCaso', 'fecha', 'provinciamunicipio'];
     }
   };
 
@@ -118,7 +177,6 @@ const GenericTable: React.FC<GenericTableProps> = ({
     const labels: Record<string, string> = {
       numeroCaso: 'Número de Caso',
       fecha: 'Fecha',
-      provincia: 'Provincia',
       localidad: 'Localidad',
       region: 'Región',
       tipoActividad: 'Tipo de Actividad',
@@ -131,7 +189,7 @@ const GenericTable: React.FC<GenericTableProps> = ({
       marca: 'Marca',
       color: 'Color',
       detalle: 'Detalle',
-      provinciaMunicipio: 'Provincia/Municipio',
+      provinciamunicipio: 'Provincia/Municipio',
       estado: 'Estado',
       tipoIncautacion: 'Tipo de Incautación',
       cantidad: 'Cantidad'
@@ -234,13 +292,6 @@ const GenericTable: React.FC<GenericTableProps> = ({
 
   const handleEdit = useCallback((item: TableItem) => {
     setSelectedItem(item);
-    setModalMode('edit');
-    setEditModalOpen(true);
-  }, []);
-
-  const handleCreate = useCallback(() => {
-    setSelectedItem(null);
-    setModalMode('create');
     setEditModalOpen(true);
   }, []);
 
@@ -252,26 +303,26 @@ const GenericTable: React.FC<GenericTableProps> = ({
 
   const handleModalSave = useCallback((item: TableItem) => {
     console.log('🟦 GenericTable - handleModalSave iniciado');
-    console.log('🟦 ModalMode:', modalMode);
     console.log('🟦 Item recibido:', item);
     
     try {
-      if (modalMode === 'create') {
-        console.log('🟦 Llamando onCreate');
-        onCreate(item);
-      } else if (modalMode === 'edit') {
-        console.log('🟦 Llamando onUpdate');
-        onUpdate(item);
-      }
+      console.log('🟦 Llamando onUpdate');
+      onUpdate(item);
       console.log('🟦 Operación completada, cerrando modal');
       setEditModalOpen(false);
     } catch (error) {
       console.error('🟦 Error en handleModalSave:', error);
     }
-  }, [modalMode, onCreate, onUpdate]);
+  }, [onUpdate]);
 
   const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
+  }, []);
+
+  const handleClearSearch = useCallback(() => {
+    setSearchTerm('');
+    setDebouncedSearchTerm('');
+    setPage(0);
   }, []);
 
   const handlePageChange = useCallback((_: unknown, newPage: number) => {
@@ -298,31 +349,47 @@ const GenericTable: React.FC<GenericTableProps> = ({
           <Typography variant="h6">
             {title || metadata.displayName}
           </Typography>
-          {allowCreate && permissions.canCreateRecords && (
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={handleCreate}
-            >
-              Agregar {metadata.displayName.slice(0, -1)}
-            </Button>
-          )}
         </Box>
 
         {/* Search */}
         <TextField
           fullWidth
           variant="outlined"
-          placeholder={`Buscar en ${metadata.displayName.toLowerCase()}...`}
+          placeholder={`Buscar por número de caso, fecha, provincia, nombre... (${metadata.displayName.toLowerCase()})`}
           value={searchTerm}
           onChange={handleSearchChange}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') {
+              handleClearSearch();
+            }
+            e.stopPropagation();
+          }}
           onMouseDown={(e) => {
             e.stopPropagation();
           }}
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
-                <SearchIcon />
+                <SearchIcon color={searchTerm ? 'primary' : 'disabled'} />
+              </InputAdornment>
+            ),
+            endAdornment: (
+              <InputAdornment position="end">
+                {searchTerm && searchTerm !== debouncedSearchTerm ? (
+                  <Typography variant="caption" color="text.secondary">
+                    Buscando...
+                  </Typography>
+                ) : searchTerm ? (
+                  <Tooltip title="Limpiar búsqueda">
+                    <IconButton
+                      size="small"
+                      onClick={handleClearSearch}
+                      edge="end"
+                    >
+                      <ClearIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                ) : null}
               </InputAdornment>
             ),
             onClick: (e) => {
@@ -338,19 +405,35 @@ const GenericTable: React.FC<GenericTableProps> = ({
           }}
         />
 
-        {/* Stats */}
-        <Box display="flex" gap={2} mt={2}>
-          <Chip
-            label={`Total: ${data.length}`}
-            color="primary"
-            variant="outlined"
-          />
-          {searchTerm && (
+        {/* Stats & Tips */}
+        <Box display="flex" justifyContent="space-between" alignItems="center" mt={2}>
+          <Box display="flex" gap={2}>
             <Chip
-              label={`Filtrados: ${filteredData.length}`}
-              color="secondary"
+              label={`Total: ${data.length}`}
+              color="primary"
               variant="outlined"
             />
+            {debouncedSearchTerm && (
+              <Chip
+                label={`Filtrados: ${filteredData.length}`}
+                color="secondary"
+                variant="outlined"
+              />
+            )}
+            {searchTerm && searchTerm !== debouncedSearchTerm && (
+              <Chip
+                label="Buscando..."
+                color="warning"
+                variant="outlined"
+                size="small"
+              />
+            )}
+          </Box>
+          
+          {!searchTerm && (
+            <Typography variant="caption" color="text.secondary" sx={{ display: { xs: 'none', sm: 'block' } }}>
+              💡 Tip: Presiona Escape para limpiar la búsqueda
+            </Typography>
           )}
         </Box>
       </Box>
@@ -363,8 +446,21 @@ const GenericTable: React.FC<GenericTableProps> = ({
       ) : filteredData.length === 0 ? (
         <Box p={4} textAlign="center">
           <Alert severity="info">
-            {searchTerm ? 'No se encontraron resultados para la búsqueda.' : 'No hay datos disponibles.'}
+            {debouncedSearchTerm ? 
+              `No se encontraron resultados para "${debouncedSearchTerm}". Intenta con otros términos de búsqueda.` : 
+              'No hay datos disponibles.'
+            }
           </Alert>
+          {debouncedSearchTerm && (
+            <Button 
+              onClick={handleClearSearch}
+              sx={{ mt: 2 }}
+              variant="outlined"
+              size="small"
+            >
+              Limpiar búsqueda
+            </Button>
+          )}
         </Box>
       ) : (
         <>
@@ -455,7 +551,6 @@ const GenericTable: React.FC<GenericTableProps> = ({
         onSave={handleModalSave}
         item={selectedItem}
         tableType={tableType}
-        mode={modalMode}
       />
 
       {/* Details Modal */}

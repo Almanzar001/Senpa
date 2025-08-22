@@ -11,6 +11,7 @@ import {
   AccountBalance as ProcuraduriaIcon
 } from '@mui/icons-material';
 import EnvironmentalAnalyticsService, { type EnvironmentalCase, type EnvironmentalFilters } from '../services/environmentalAnalytics';
+import { createNavigationURL, logFilterPersistence } from '../utils/filterPersistence';
 
 interface EnvironmentalMetricsProps {
   cases: EnvironmentalCase[];
@@ -81,16 +82,6 @@ const EnvironmentalMetrics: React.FC<EnvironmentalMetricsProps> = ({
       filterKey: 'incautaciones'
     },
     {
-      title: 'Áreas Intervenidas',
-      value: metrics.areasIntervenidas,
-      icon: AreasIcon,
-      colorClass: 'bg-success-600',
-      iconBg: 'bg-success-100',
-      iconColor: 'text-success-600',
-      description: 'Localidades únicas con operativos',
-      filterKey: 'areas'
-    },
-    {
       title: 'Notificados',
       value: metrics.notificados,
       icon: NotificadosIcon,
@@ -113,12 +104,104 @@ const EnvironmentalMetrics: React.FC<EnvironmentalMetricsProps> = ({
   ];
 
   const handleCardClick = (filterKey: string, value: number) => {
+    console.log('🔵 EnvironmentalMetrics - Card clicked:', {
+      filterKey,
+      value,
+      filters,
+      hasFilters: !!filters
+    });
+
     if (value > 0) {
-      // Direct route to specific pages for better organization
-      if (filterKey === 'notificados') {
-        navigate('/operations/notificados');
-      } else {
-        navigate(`/operations?filter=${filterKey}&value=${value}`);
+      // Verificar si hay filtros activos (no solo si el objeto existe)
+      const hasActiveFilters = filters && (
+        filters.dateFrom || 
+        filters.dateTo || 
+        filters.provincia?.length > 0 ||
+        filters.division?.length > 0 ||
+        filters.region?.length > 0 ||
+        filters.tipoActividad?.length > 0 ||
+        filters.areaTemática?.length > 0 ||
+        filters.searchText?.trim() ||
+        filters.isExecutiveView
+      );
+
+      console.log('🔵 EnvironmentalMetrics - Filter analysis:', {
+        hasActiveFilters,
+        filtersBreakdown: {
+          dateFrom: filters?.dateFrom,
+          dateTo: filters?.dateTo,
+          provincia: filters?.provincia?.length || 0,
+          division: filters?.division?.length || 0,
+          isExecutiveView: filters?.isExecutiveView
+        }
+      });
+
+      // Si no hay filtros activos, usar navegación simple sin persistencia
+      if (!filters || !hasActiveFilters) {
+        const simpleUrl = filterKey === 'notificados' 
+          ? '/operations/notificados?source=main'
+          : `/operations?filter=${filterKey}&value=${value}&source=main`;
+        
+        console.log('🔵 EnvironmentalMetrics - Simple navigation to:', simpleUrl);
+        navigate(simpleUrl);
+        return;
+      }
+
+      // Crear objeto de filtros unificados para persistencia
+      const unifiedFilters = {
+        dateFrom: filters.dateFrom || '',
+        dateTo: filters.dateTo || '',
+        activeDateFilter: filters.activeDateFilter,
+        provincia: filters.provincia || [],
+        region: filters.region || [],
+        localidad: filters.division || [], // Mapeo de division a localidad
+        tipoActividad: filters.tipoActividad || [],
+        areaTemática: filters.areaTemática || [],
+        searchText: filters.searchText || '',
+        states: [],
+        locations: filters.division || [],
+        types: filters.tipoActividad || [],
+        provinces: filters.provincia || [],
+        isExecutiveView: filters.isExecutiveView || false
+      };
+
+      try {
+        // Crear URL con filtros persistidos
+        const navigationURL = createNavigationURL(
+          '/operations',
+          unifiedFilters,
+          { 
+            filter: filterKey,
+            value: value.toString()
+          }
+        );
+
+        logFilterPersistence('Card Navigation', {
+          filterKey,
+          value,
+          currentFilters: filters,
+          unifiedFilters,
+          navigationURL
+        });
+
+        // Navegación especial para notificados
+        if (filterKey === 'notificados') {
+          const notificadosURL = createNavigationURL(
+            '/operations/notificados',
+            unifiedFilters
+          );
+          navigate(notificadosURL);
+        } else {
+          navigate(navigationURL);
+        }
+      } catch (error) {
+        console.error('Error en navegación con filtros:', error);
+        // Fallback a navegación simple
+        if (filterKey === 'notificados') {
+          navigate('/operations/notificados');
+        } else {
+          navigate(`/operations?filter=${filterKey}&value=${value}`);
+        }
       }
     }
   };

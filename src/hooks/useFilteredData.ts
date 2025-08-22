@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { type SheetData } from '../services/supabase';
 import { type FilterOptions } from '../components/AdvancedFilters';
+import { parseDate, isDateInRange } from '../utils/dateUtils';
 
 export const useFilteredData = (sheetsData: SheetData[], filters: FilterOptions) => {
   return useMemo(() => {
@@ -74,67 +75,14 @@ export const useFilteredData = (sheetsData: SheetData[], filters: FilterOptions)
         const tipo = tipoCol >= 0 ? String(row[tipoCol] || '') : '';
         const provincia = provinciaCol >= 0 ? String(row[provinciaCol] || '') : '';
         
-        // Date filter
+        // Date filter - using centralized utilities
         if (filters.dateFrom || filters.dateTo) {
-          let rowDate: Date | null = null;
-          
-          if (fecha) {
-            // Try different date formats
-            const dateStr = fecha.trim();
-            
-            // Try to parse the date in multiple formats
-            // Format 1: YYYY-MM-DD (ISO format)
-            if (dateStr.match(/^\d{4}-\d{1,2}-\d{1,2}/)) {
-              // Handle YYYY-MM-DD format, ensuring it's parsed as local time
-              // by constructing date from parts. This avoids timezone issues.
-              const dateOnly = dateStr.substring(0, 10);
-              const parts = dateOnly.split('-');
-              if (parts.length === 3) {
-                const year = parseInt(parts[0], 10);
-                const month = parseInt(parts[1], 10);
-                const day = parseInt(parts[2], 10);
-                if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
-                  rowDate = new Date(year, month - 1, day);
-                }
-              }
-            }
-            // Format 2: DD/MM/YYYY, DD-MM-YYYY, MM/DD/YYYY, MM-DD-YYYY
-            else if (dateStr.match(/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}$/)) {
-              const parts = dateStr.split(/[\/\-]/);
-              if (parts[0] && parts[1] && parts[2]) {
-                const part1 = parseInt(parts[0]);
-                const part2 = parseInt(parts[1]);
-                const year = parseInt(parts[2]);
-                
-                // Try DD/MM/YYYY first (more common internationally)
-                if (part1 <= 31 && part2 <= 12 && year > 1900) {
-                  rowDate = new Date(year, part2 - 1, part1);
-                }
-                // If that doesn't make sense, try MM/DD/YYYY
-                else if (part1 <= 12 && part2 <= 31 && year > 1900) {
-                  rowDate = new Date(year, part1 - 1, part2);
-                }
-              }
-            }
-            // Format 3: Try direct parsing as fallback
-            if (!rowDate || isNaN(rowDate.getTime())) {
-              // Fallback: For 'YYYY-MM-DD', replace '-' with '/' to encourage local time parsing
-              const localDateStr = dateStr.match(/^\d{4}-\d{1,2}-\d{1,2}$/)
-                ? dateStr.replace(/-/g, '/')
-                : dateStr;
-              const testDate = new Date(localDateStr);
-              if (!isNaN(testDate.getTime())) {
-                rowDate = testDate;
-              }
-            }
-          }
+          const rowDate = parseDate(fecha);
           
           if (rowDate && !isNaN(rowDate.getTime())) {
-            const filterFromDate = filters.dateFrom ? new Date(`${filters.dateFrom}T00:00:00`) : null;
-            const filterToDate = filters.dateTo ? new Date(`${filters.dateTo}T23:59:59.999`) : null;
-
-            if (filterFromDate && rowDate < filterFromDate) return false;
-            if (filterToDate && rowDate > filterToDate) return false;
+            if (!isDateInRange(rowDate, filters.dateFrom, filters.dateTo)) {
+              return false;
+            }
           } else if (filters.dateFrom || filters.dateTo) {
             return false; // Exclude rows without valid dates when date filter is active
           }

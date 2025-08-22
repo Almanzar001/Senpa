@@ -68,67 +68,140 @@ const AutoRefreshSettings: React.FC<AutoRefreshSettingsProps> = ({
       
       <DialogContent className="py-6">
         <div className="space-y-6">
-          {/* Toggle Auto-refresh */}
-          <FormControlLabel
-            control={
-              <Switch
-                checked={tempAutoRefresh}
-                onChange={(e) => setTempAutoRefresh(e.target.checked)}
-                color="success"
+          {/* Estado Actual */}
+          <Box sx={{ 
+            display: 'flex', 
+            mb: 3, 
+            alignItems: 'center',
+            borderBottom: '1px solid',
+            borderColor: 'grey.100',
+            pb: 2
+          }}>
+            <Box sx={{ 
+              minWidth: '180px', 
+              width: '40%',
+              pr: 2
+            }}>
+              <Typography 
+                variant="subtitle2" 
+                color="text.secondary" 
+                sx={{ 
+                  fontWeight: 600,
+                  textAlign: 'right'
+                }}
+              >
+                Auto-actualización:
+              </Typography>
+            </Box>
+            <Box sx={{ flex: 1 }}>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={tempAutoRefresh}
+                    onChange={(e) => setTempAutoRefresh(e.target.checked)}
+                    color="success"
+                  />
+                }
+                label={tempAutoRefresh ? "Activada" : "Desactivada"}
               />
-            }
-            label="Activar actualización automática"
-            className="mb-4"
-          />
+            </Box>
+          </Box>
 
           {/* Interval Selection */}
           {tempAutoRefresh && (
-            <div>
-              <Typography variant="subtitle2" className="mb-3 font-semibold text-gray-700">
-                Intervalo de actualización:
-              </Typography>
-              
-              <FormControl fullWidth size="small" className="mb-4">
-                <InputLabel>Intervalo</InputLabel>
-                <Select
-                  value={tempInterval}
-                  onChange={(e) => setTempInterval(Number(e.target.value))}
-                  label="Intervalo"
-                >
-                  {intervalOptions.map((option) => (
-                    <MenuItem key={option.value} value={option.value}>
-                      <div className="flex items-center justify-between w-full">
-                        <span>{option.label}</span>
-                        <Chip 
-                          size="small" 
-                          label={option.value < 60 ? 'Rápido' : option.value < 300 ? 'Normal' : 'Lento'}
-                          color={option.color as any}
-                          variant="outlined"
-                        />
-                      </div>
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+            <>
+              <Box sx={{ 
+                display: 'flex', 
+                mb: 3, 
+                alignItems: 'center',
+                borderBottom: '1px solid',
+                borderColor: 'grey.100',
+                pb: 2
+              }}>
+                <Box sx={{ 
+                  minWidth: '180px', 
+                  width: '40%',
+                  pr: 2
+                }}>
+                  <Typography 
+                    variant="subtitle2" 
+                    color="text.secondary" 
+                    sx={{ 
+                      fontWeight: 600,
+                      textAlign: 'right'
+                    }}
+                  >
+                    Intervalo actual:
+                  </Typography>
+                </Box>
+                <Box sx={{ flex: 1 }}>
+                  <FormControl fullWidth size="small">
+                    <InputLabel>Seleccionar intervalo</InputLabel>
+                    <Select
+                      value={tempInterval}
+                      onChange={(e) => setTempInterval(Number(e.target.value))}
+                      label="Seleccionar intervalo"
+                    >
+                      {intervalOptions.map((option) => (
+                        <MenuItem key={option.value} value={option.value}>
+                          <div className="flex items-center justify-between w-full">
+                            <span>{option.label}</span>
+                            <Chip 
+                              size="small" 
+                              label={option.value < 60 ? 'Rápido' : option.value < 300 ? 'Normal' : 'Lento'}
+                              color={option.color as any}
+                              variant="outlined"
+                            />
+                          </div>
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Box>
+              </Box>
 
               {/* Quick selection chips */}
-              <Typography variant="body2" className="mb-2 text-gray-600">
-                Selección rápida:
-              </Typography>
-              <Box className="flex flex-wrap gap-2">
-                {intervalOptions.map((option) => (
-                  <Chip
-                    key={option.value}
-                    label={option.label}
-                    onClick={() => setTempInterval(option.value)}
-                    variant={tempInterval === option.value ? 'filled' : 'outlined'}
-                    color={tempInterval === option.value ? 'success' : 'default'}
-                    size="small"
-                    className="cursor-pointer"
-                  />
-                ))}
+              <Box sx={{ 
+                display: 'flex', 
+                mb: 3, 
+                alignItems: 'flex-start',
+                borderBottom: '1px solid',
+                borderColor: 'grey.100',
+                pb: 2
+              }}>
+                <Box sx={{ 
+                  minWidth: '180px', 
+                  width: '40%',
+                  pr: 2
+                }}>
+                  <Typography 
+                    variant="subtitle2" 
+                    color="text.secondary" 
+                    sx={{ 
+                      fontWeight: 600,
+                      textAlign: 'right'
+                    }}
+                  >
+                    Selección rápida:
+                  </Typography>
+                </Box>
+                <Box sx={{ flex: 1 }}>
+                  <Box className="flex flex-wrap gap-2">
+                    {intervalOptions.map((option) => (
+                      <Chip
+                        key={option.value}
+                        label={option.label}
+                        onClick={() => setTempInterval(option.value)}
+                        variant={tempInterval === option.value ? 'filled' : 'outlined'}
+                        color={tempInterval === option.value ? 'success' : 'default'}
+                        size="small"
+                        className="cursor-pointer"
+                      />
+                    ))}
+                  </Box>
+                </Box>
               </Box>
-            </div>
+            </>
           )}
 
           {/* Info */}

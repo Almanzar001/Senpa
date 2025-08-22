@@ -12,7 +12,7 @@ import {
   ArrowBack as BackIcon
 } from '@mui/icons-material';
 import type { NotaInformativa } from '../types/tableTypes';
-import { notasInformativasService } from '../services/tableServices';
+import { supabaseCrudService } from '../services/supabaseCrud';
 import GenericTable from './GenericTable';
 import { useData } from '../contexts/DataContext';
 import { usePermissions } from '../hooks/usePermissions';
@@ -25,72 +25,44 @@ const NotificadosPage: React.FC = () => {
 
   // Load and map data from cases with notificados
   useEffect(() => {
-    if (cases && cases.length > 0) {
-      try {
-        console.log('🔍 Total cases:', cases.length);
-        console.log('🔍 Checking notificados fields in first 5 cases:');
-        cases.slice(0, 5).forEach((c, i) => {
-          console.log(`  ${i+1}. ${c.numeroCaso}:`, {
-            notificados: c.notificados,
-            notificadosType: typeof c.notificados,
-            notificadosInfo: c.notificadosInfo,
-            notificadosInfoType: typeof c.notificadosInfo
-          });
-        });
-        
-        // Filter cases where the TEXT field "notificados" has names (not empty)
-        const casesWithNotificados = cases.filter(c => {
-          // Now notificados should be a string with actual names
-          const notificadosText = c.notificados;
-          const hasNotificados = notificadosText && 
-                               typeof notificadosText === 'string' && 
-                               notificadosText.trim() !== '';
+    const loadData = async () => {
+      if (cases && cases.length > 0) {
+        try {
+          console.log('🔍 NotificadosPage - Cargando datos desde Supabase...');
           
-          if (hasNotificados) {
-            console.log('✅ Case with notificados:', c.numeroCaso, 'notificados:', notificadosText);
-          }
+          // Cargar datos desde Supabase
+          const notasData = await supabaseCrudService.getAll('notas_informativas');
+          const notificadosData = (notasData as NotaInformativa[]).filter(nota => 
+            nota.notificados && nota.notificados.toString().trim() !== ''
+          );
           
-          return hasNotificados;
-        });
-        
-        console.log('🔍 Total cases with notificados:', casesWithNotificados.length);
-
-        // Map to NotaInformativa format
-        const mappedNotificados: NotaInformativa[] = casesWithNotificados.map(envCase => ({
-          id: `nota_${envCase.numeroCaso}`,
-          numeroCaso: envCase.numeroCaso,
-          fecha: envCase.fecha,
-          hora: envCase.hora,
-          provincia: envCase.provincia,
-          localidad: envCase.localidad,
-          region: envCase.region,
-          tipoActividad: envCase.tipoActividad,
-          areaTemática: envCase.areaTemática,
-          notificados: envCase.notificados || '',
-          procuraduria: envCase.procuraduria,
-          resultado: envCase.resultado || '',
-          observaciones: '',
-          coordenadas: envCase.coordenadas
-        }));
-
-        // Update service and state
-        notasInformativasService.items.clear();
-        mappedNotificados.forEach(nota => notasInformativasService.items.set(nota.id, nota));
-        setNotificadosData(mappedNotificados);
-        setError(null);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Error al cargar notificados');
+          console.log('✅ NotificadosPage - Datos cargados:', notificadosData.length, 'registros con notificados');
+          setNotificadosData(notificadosData);
+          setError(null);
+        } catch (err) {
+          console.error('❌ NotificadosPage - Error cargando datos:', err);
+          setError(err instanceof Error ? err.message : 'Error al cargar notificados');
+        }
       }
-    }
+    };
+    
+    loadData();
   }, [cases]);
 
   // Handle update with proper notificados logic
   const handleUpdate = async (item: NotaInformativa) => {
     console.log('🔄 NotificadosPage handleUpdate called with:', item);
     try {
-      // Update local service
-      notasInformativasService.update(item);
-      setNotificadosData(notasInformativasService.getAll());
+      // Actualizar en Supabase
+      await supabaseCrudService.update('notas_informativas', item.id, item);
+      
+      // Recargar datos desde Supabase
+      const notasData = await supabaseCrudService.getAll('notas_informativas');
+      const notificadosData = (notasData as NotaInformativa[]).filter(nota => 
+        nota.notificados && nota.notificados.toString().trim() !== ''
+      );
+      
+      setNotificadosData(notificadosData);
       
       // Find original case
       const originalCase = cases.find(c => c.numeroCaso === item.numeroCaso);
@@ -152,19 +124,33 @@ const NotificadosPage: React.FC = () => {
     }
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     try {
-      notasInformativasService.delete(id);
-      setNotificadosData(notasInformativasService.getAll());
+      await supabaseCrudService.delete('notas_informativas', id);
+      
+      // Recargar datos desde Supabase
+      const notasData = await supabaseCrudService.getAll('notas_informativas');
+      const notificadosData = (notasData as NotaInformativa[]).filter(nota => 
+        nota.notificados && nota.notificados.toString().trim() !== ''
+      );
+      
+      setNotificadosData(notificadosData);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al eliminar');
     }
   };
 
-  const handleCreate = (item: NotaInformativa) => {
+  const handleCreate = async (item: NotaInformativa) => {
     try {
-      notasInformativasService.add(item);
-      setNotificadosData(notasInformativasService.getAll());
+      await supabaseCrudService.create('notas_informativas', item);
+      
+      // Recargar datos desde Supabase
+      const notasData = await supabaseCrudService.getAll('notas_informativas');
+      const notificadosData = (notasData as NotaInformativa[]).filter(nota => 
+        nota.notificados && nota.notificados.toString().trim() !== ''
+      );
+      
+      setNotificadosData(notificadosData);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al crear');
     }
@@ -245,10 +231,8 @@ const NotificadosPage: React.FC = () => {
           data={notificadosData}
           onUpdate={permissions.canEditRecords ? handleUpdate : () => {}}
           onDelete={permissions.canDeleteRecords ? handleDelete : () => {}}
-          onCreate={() => {}} // Disabled - data comes from n8n automation
           loading={loading}
           title="Notificados"
-          allowCreate={false} // Disabled - data comes from n8n automation
         />
       </div>
     </div>

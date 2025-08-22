@@ -23,6 +23,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { simpleAuth } from '../services/simpleAuth';
 import EnvironmentalCharts from './EnvironmentalCharts';
 import SecondaryIndicators from './SecondaryIndicators';
+import { getQuickDateRanges } from '../utils/dateUtils';
+import EnvironmentalAnalyticsService from '../services/environmentalAnalytics';
 
 type DateFilter = 'today' | 'yesterday' | 'thisMonth' | 'all';
 
@@ -30,32 +32,21 @@ const ExecutiveDashboard: React.FC = () => {
   const { cases, filteredCases, loading, error, filters, setFilters } = useData();
   const { user } = useAuth();
   const [selectedDateFilter, setSelectedDateFilter] = useState<DateFilter>('all');
+  
+  // Instancia del servicio de analytics para métricas centralizadas
+  const analyticsService = useMemo(() => new EnvironmentalAnalyticsService(), []);
 
-  // Function to get date ranges
+  // Function to get date ranges using centralized utilities
   const getDateRange = (filter: DateFilter): { dateFrom: string; dateTo: string } => {
-    const today = new Date();
-    const yesterday = new Date(today);
-    yesterday.setDate(today.getDate() - 1);
+    const ranges = getQuickDateRanges();
     
-    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-    const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-
     switch (filter) {
       case 'today':
-        return {
-          dateFrom: today.toISOString().split('T')[0],
-          dateTo: today.toISOString().split('T')[0]
-        };
+        return ranges.today;
       case 'yesterday':
-        return {
-          dateFrom: yesterday.toISOString().split('T')[0],
-          dateTo: yesterday.toISOString().split('T')[0]
-        };
+        return ranges.yesterday;
       case 'thisMonth':
-        return {
-          dateFrom: startOfMonth.toISOString().split('T')[0],
-          dateTo: endOfMonth.toISOString().split('T')[0]
-        };
+        return ranges.thisMonth;
       default:
         return { dateFrom: '', dateTo: '' };
     }
@@ -63,44 +54,60 @@ const ExecutiveDashboard: React.FC = () => {
 
   // Handle date filter change
   const handleDateFilterChange = (filter: DateFilter) => {
+    console.log('🟦 Executive Dashboard - Cambio de filtro iniciado:', filter);
+    
     setSelectedDateFilter(filter);
     
     // Update global filters in context
     const dateRange = getDateRange(filter);
-    setFilters({
+    
+    console.log('🟦 Executive Dashboard - Rango de fechas calculado:', {
+      filter,
+      dateRange,
+      currentDate: new Date().toLocaleDateString('es-ES'),
+      currentDateISO: new Date().toISOString().split('T')[0]
+    });
+    
+    const newFilters = {
       ...filters,
       dateFrom: dateRange.dateFrom,
       dateTo: dateRange.dateTo,
       activeDateFilter: filter,
       isExecutiveView: true
+    };
+    
+    console.log('🟦 Executive Dashboard - Filtros antes y después:', {
+      filtrosAnteriores: filters,
+      filtrosNuevos: newFilters,
+      casosAntesDelFiltro: cases?.length || 0
     });
     
-    console.log('🟦 Executive Dashboard - Filtros actualizados:', {
-      filter,
-      dateRange,
-      globalFilters: {
-        ...filters,
-        dateFrom: dateRange.dateFrom,
-        dateTo: dateRange.dateTo
-      }
-    });
+    setFilters(newFilters);
   };
 
   // Initialize filters when component mounts
   useEffect(() => {
     // Set initial filter state to match context
-    if (filters.activeDateFilter) {
+    if (filters.activeDateFilter && filters.activeDateFilter !== 'all') {
       setSelectedDateFilter(filters.activeDateFilter as DateFilter);
     } else {
       // Initialize with 'all' filter if no active filter
-      handleDateFilterChange('all');
+      // Para 'all', establecemos filtros vacíos para mostrar todos los datos
+      setFilters({
+        ...filters,
+        dateFrom: '',
+        dateTo: '',
+        activeDateFilter: 'all',
+        isExecutiveView: true
+      });
+      setSelectedDateFilter('all');
     }
   }, []); // Only run once on mount
 
   // Use filtered cases from context (no local filtering needed)
   // The filtering is now handled by the global context
 
-  // Calculate main metrics
+  // Calculate main metrics using filtered cases from context
   const metrics = React.useMemo(() => {
     if (!filteredCases || filteredCases.length === 0) {
       return {
@@ -113,6 +120,8 @@ const ExecutiveDashboard: React.FC = () => {
       };
     }
 
+    // Ya no necesitamos aplicar filtros porque filteredCases ya está filtrado
+    // Solo necesitamos calcular las métricas directamente sobre los casos filtrados
     let operativos = 0;
     let patrullas = 0;
     let detenidos = 0;
@@ -120,7 +129,7 @@ const ExecutiveDashboard: React.FC = () => {
     let procuraduria = 0;
     let notificados = 0;
 
-    filteredCases.forEach(caso => {
+    filteredCases.forEach((caso) => {
       // Contar operativos
       if (caso.tipoActividad && caso.tipoActividad.toLowerCase().includes('operativo')) {
         operativos++;
@@ -142,11 +151,11 @@ const ExecutiveDashboard: React.FC = () => {
       }
       
       // Contar casos con procuraduría
-      if (caso.procuraduria) {
+      if (caso.procuraduria === 'SI') {
         procuraduria++;
       }
       
-      // Contar notificados (total de personas notificadas)
+      // Contar notificados
       if (caso.notificadosCount && caso.notificadosCount > 0) {
         notificados += caso.notificadosCount;
       } else if (caso.notificados && String(caso.notificados).trim() !== '') {
@@ -159,7 +168,7 @@ const ExecutiveDashboard: React.FC = () => {
       }
     });
 
-    return {
+    const result = {
       operativos,
       patrullas,
       detenidos,
@@ -167,7 +176,17 @@ const ExecutiveDashboard: React.FC = () => {
       procuraduria,
       notificados
     };
-  }, [filteredCases]);
+
+    // Debug logging para las métricas
+    console.log('📊 ExecutiveDashboard - Métricas calculadas:', {
+      filteredCasesCount: filteredCases.length,
+      metrics: result,
+      selectedFilter: selectedDateFilter,
+      activeFilters: filters
+    });
+
+    return result;
+  }, [filteredCases, selectedDateFilter, filters]);
 
   const metricCards = [
     {
@@ -226,23 +245,33 @@ const ExecutiveDashboard: React.FC = () => {
     }
   ];
 
-  // Debug logs
-  console.log('ExecutiveDashboard - Loading:', loading);
-  console.log('ExecutiveDashboard - Cases:', cases?.length || 0);
-  console.log('ExecutiveDashboard - Filtered:', filteredCases?.length || 0);
-  console.log('ExecutiveDashboard - Metrics:', metrics);
-  console.log('ExecutiveDashboard - Error:', error);
-  
-  // Debug específico para notificados
-  if (filteredCases?.length > 0) {
-    console.log('Sample cases with notificados:');
-    filteredCases.slice(0, 3).forEach((caso, i) => {
-      console.log(`Caso ${i}:`, {
-        numeroCaso: caso.numeroCaso,
-        notificados: caso.notificados,
-        notificadosCount: caso.notificadosCount
-      });
+  // Debug logs - solo en desarrollo
+  if (process.env.NODE_ENV === 'development') {
+    console.log('ExecutiveDashboard - Debug Info:', {
+      loading,
+      totalCases: cases?.length || 0,
+      filteredCases: filteredCases?.length || 0,
+      metrics,
+      error,
+      currentFilter: selectedDateFilter,
+      activeFilters: filters
     });
+    
+    // Mostrar algunos casos de ejemplo para debugging
+    if (filteredCases?.length > 0) {
+      console.log('📋 Primeros 3 casos filtrados:', 
+        filteredCases.slice(0, 3).map(caso => ({
+          numeroCaso: caso.numeroCaso,
+          fecha: caso.fecha,
+          tipoActividad: caso.tipoActividad,
+          detenidos: caso.detenidos,
+          vehiculosDetenidos: caso.vehiculosDetenidos,
+          procuraduria: caso.procuraduria,
+          notificados: caso.notificados,
+          notificadosCount: caso.notificadosCount
+        }))
+      );
+    }
   }
 
   if (loading) {
@@ -307,35 +336,55 @@ const ExecutiveDashboard: React.FC = () => {
               {/* Map Buttons */}
               <Tooltip title="Mapa de Detenidos">
                 <Link to="/detainees-map?from=executive">
-                  <IconButton
+                  <Button
+                    variant="outlined"
+                    startIcon={<PersonIcon />}
                     size="small"
                     sx={{
                       backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                      borderColor: 'rgb(239, 68, 68)',
                       color: 'rgb(239, 68, 68)',
+                      fontSize: { xs: '0.7rem', sm: '0.75rem' },
+                      padding: { xs: '6px 8px', sm: '6px 12px' },
+                      minWidth: { xs: '90px', sm: '110px' },
+                      textTransform: 'none',
+                      fontWeight: 600,
                       '&:hover': {
                         backgroundColor: 'rgba(239, 68, 68, 0.2)',
+                        borderColor: 'rgb(220, 38, 38)',
                       }
                     }}
                   >
-                    <PersonIcon fontSize="small" />
-                  </IconButton>
+                    <span className="hidden sm:inline">Detenidos</span>
+                    <span className="sm:hidden">Det.</span>
+                  </Button>
                 </Link>
               </Tooltip>
 
               <Tooltip title="Mapa de Vehículos">
                 <Link to="/vehicles-map?from=executive">
-                  <IconButton
+                  <Button
+                    variant="outlined"
+                    startIcon={<CarIcon />}
                     size="small"
                     sx={{
                       backgroundColor: 'rgba(249, 115, 22, 0.1)',
+                      borderColor: 'rgb(249, 115, 22)',
                       color: 'rgb(249, 115, 22)',
+                      fontSize: { xs: '0.7rem', sm: '0.75rem' },
+                      padding: { xs: '6px 8px', sm: '6px 12px' },
+                      minWidth: { xs: '90px', sm: '110px' },
+                      textTransform: 'none',
+                      fontWeight: 600,
                       '&:hover': {
                         backgroundColor: 'rgba(249, 115, 22, 0.2)',
+                        borderColor: 'rgb(194, 65, 12)',
                       }
                     }}
                   >
-                    <CarIcon fontSize="small" />
-                  </IconButton>
+                    <span className="hidden sm:inline">Vehículos</span>
+                    <span className="sm:hidden">Veh.</span>
+                  </Button>
                 </Link>
               </Tooltip>
 
@@ -423,39 +472,55 @@ const ExecutiveDashboard: React.FC = () => {
             {/* Map Buttons */}
             <Tooltip title="Mapa de Detenidos">
               <Link to="/detainees-map?from=executive">
-                <IconButton
-                  size="small"
+                <Button
+                  variant="outlined"
+                  startIcon={<PersonIcon />}
+                  size="medium"
                   sx={{
                     backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                    borderColor: 'rgb(239, 68, 68)',
                     color: 'rgb(239, 68, 68)',
-                    width: { xs: '32px', sm: '40px' },
-                    height: { xs: '32px', sm: '40px' },
+                    fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                    padding: { xs: '8px 12px', sm: '8px 16px' },
+                    minWidth: { xs: '120px', sm: '140px' },
+                    textTransform: 'none',
+                    fontWeight: 600,
                     '&:hover': {
                       backgroundColor: 'rgba(239, 68, 68, 0.2)',
+                      borderColor: 'rgb(220, 38, 38)',
                     }
                   }}
                 >
-                  <PersonIcon sx={{ fontSize: { xs: '16px', sm: '20px' } }} />
-                </IconButton>
+                  <span className="hidden sm:inline">Mapa Detenidos</span>
+                  <span className="sm:hidden">Detenidos</span>
+                </Button>
               </Link>
             </Tooltip>
 
             <Tooltip title="Mapa de Vehículos">
               <Link to="/vehicles-map?from=executive">
-                <IconButton
-                  size="small"
+                <Button
+                  variant="outlined"
+                  startIcon={<CarIcon />}
+                  size="medium"
                   sx={{
                     backgroundColor: 'rgba(249, 115, 22, 0.1)',
+                    borderColor: 'rgb(249, 115, 22)',
                     color: 'rgb(249, 115, 22)',
-                    width: { xs: '32px', sm: '40px' },
-                    height: { xs: '32px', sm: '40px' },
+                    fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                    padding: { xs: '8px 12px', sm: '8px 16px' },
+                    minWidth: { xs: '120px', sm: '140px' },
+                    textTransform: 'none',
+                    fontWeight: 600,
                     '&:hover': {
                       backgroundColor: 'rgba(249, 115, 22, 0.2)',
+                      borderColor: 'rgb(194, 65, 12)',
                     }
                   }}
                 >
-                  <CarIcon sx={{ fontSize: { xs: '16px', sm: '20px' } }} />
-                </IconButton>
+                  <span className="hidden sm:inline">Mapa Vehículos</span>
+                  <span className="sm:hidden">Vehículos</span>
+                </Button>
               </Link>
             </Tooltip>
 
@@ -484,6 +549,7 @@ const ExecutiveDashboard: React.FC = () => {
           </div>
         </div>
 
+
         {/* Date Filter Buttons */}
         <Card className="shadow-lg mb-6">
           <CardContent className="p-2 sm:p-4">
@@ -508,9 +574,9 @@ const ExecutiveDashboard: React.FC = () => {
                     backgroundColor: selectedDateFilter === 'all' ? 'rgb(71 85 105)' : 'transparent',
                     borderColor: 'rgb(71 85 105)',
                     color: selectedDateFilter === 'all' ? 'white' : 'rgb(71 85 105)',
-                    fontSize: { xs: '0.7rem', sm: '0.875rem' },
-                    padding: { xs: '2px 6px', sm: '6px 16px' },
-                    minWidth: { xs: '50px', sm: '64px' },
+                    fontSize: { xs: '0.875rem', sm: '0.875rem' },
+                    padding: { xs: '8px 12px', sm: '6px 16px' },
+                    minWidth: { xs: '70px', sm: '64px' },
                     '&:hover': {
                       backgroundColor: selectedDateFilter === 'all' ? 'rgb(51 65 85)' : 'rgba(71, 85, 105, 0.04)',
                     }
@@ -530,9 +596,9 @@ const ExecutiveDashboard: React.FC = () => {
                     backgroundColor: selectedDateFilter === 'today' ? 'rgb(34 197 94)' : 'transparent',
                     borderColor: 'rgb(34 197 94)',
                     color: selectedDateFilter === 'today' ? 'white' : 'rgb(34 197 94)',
-                    fontSize: { xs: '0.7rem', sm: '0.875rem' },
-                    padding: { xs: '2px 6px', sm: '6px 16px' },
-                    minWidth: { xs: '40px', sm: '64px' },
+                    fontSize: { xs: '0.875rem', sm: '0.875rem' },
+                    padding: { xs: '8px 12px', sm: '6px 16px' },
+                    minWidth: { xs: '60px', sm: '64px' },
                     '&:hover': {
                       backgroundColor: selectedDateFilter === 'today' ? 'rgb(21 128 61)' : 'rgba(34, 197, 94, 0.04)',
                     }
@@ -551,9 +617,9 @@ const ExecutiveDashboard: React.FC = () => {
                     backgroundColor: selectedDateFilter === 'yesterday' ? 'rgb(249 115 22)' : 'transparent',
                     borderColor: 'rgb(249 115 22)',
                     color: selectedDateFilter === 'yesterday' ? 'white' : 'rgb(249 115 22)',
-                    fontSize: { xs: '0.7rem', sm: '0.875rem' },
-                    padding: { xs: '2px 6px', sm: '6px 16px' },
-                    minWidth: { xs: '40px', sm: '64px' },
+                    fontSize: { xs: '0.875rem', sm: '0.875rem' },
+                    padding: { xs: '8px 12px', sm: '6px 16px' },
+                    minWidth: { xs: '60px', sm: '64px' },
                     '&:hover': {
                       backgroundColor: selectedDateFilter === 'yesterday' ? 'rgb(194 65 12)' : 'rgba(249, 115, 22, 0.04)',
                     }
@@ -572,9 +638,9 @@ const ExecutiveDashboard: React.FC = () => {
                     backgroundColor: selectedDateFilter === 'thisMonth' ? 'rgb(99 102 241)' : 'transparent',
                     borderColor: 'rgb(99 102 241)',
                     color: selectedDateFilter === 'thisMonth' ? 'white' : 'rgb(99 102 241)',
-                    fontSize: { xs: '0.7rem', sm: '0.875rem' },
-                    padding: { xs: '2px 6px', sm: '6px 16px' },
-                    minWidth: { xs: '50px', sm: '80px' },
+                    fontSize: { xs: '0.875rem', sm: '0.875rem' },
+                    padding: { xs: '8px 12px', sm: '6px 16px' },
+                    minWidth: { xs: '70px', sm: '80px' },
                     '&:hover': {
                       backgroundColor: selectedDateFilter === 'thisMonth' ? 'rgb(79 70 229)' : 'rgba(99, 102, 241, 0.04)',
                     }
@@ -615,7 +681,7 @@ const ExecutiveDashboard: React.FC = () => {
             return (
               <div 
                 key={index} 
-                className="metric-card cursor-pointer hover:transform hover:scale-105 hover:shadow-lg transition-all duration-200"
+                className="metric-card transition-all duration-200"
               >
                 <div className="flex flex-col items-center justify-center text-center h-full space-y-2 sm:space-y-4 p-2 sm:p-4">
                   <div className={`w-10 h-10 sm:w-16 sm:h-16 ${metric.iconBg} rounded-xl flex items-center justify-center group-hover:shadow-md`}>
@@ -653,10 +719,12 @@ const ExecutiveDashboard: React.FC = () => {
               filters={{ 
                 dateFrom: filters.dateFrom,
                 dateTo: filters.dateTo,
-                provincia: '',
-                division: '',
-                tipoActividad: '',
-                areaTemática: '',
+                provincia: [],
+                division: [],
+                region: [],
+                tipoActividad: [],
+                areaTemática: [],
+                searchText: '',
                 activeDateFilter: filters.activeDateFilter,
                 isExecutiveView: true 
               }}

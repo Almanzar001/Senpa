@@ -5,15 +5,16 @@ export interface NotaInformativa {
   numeroCaso: string;
   fecha: string;
   hora: string;
-  provincia: string;
-  localidad: string;
-  region: string;
+  provinciamunicipio: string; // Campo ENUM real en la base de datos
+  localidad: string; // Existe en la base de datos
+  region: string; // Existe en la base de datos
   tipoActividad: string;
   areaTemática: string;
   notificados: string; // Nombres de las personas notificadas
-  procuraduria: boolean;
+  procuraduria: string; // Campo string que contiene 'SI' o 'NO'
   resultado?: string;
   observaciones?: string;
+  nota?: string; // Campo que existe en la base de datos
   coordenadas?: {
     lat: number;
     lng: number;
@@ -24,35 +25,43 @@ export interface Detenido {
   id: string;
   numeroCaso: string;
   fecha: string;
-  hora: string;
-  provincia: string;
-  localidad: string;
-  region: string;
+  hora?: string;
+  provinciamunicipio?: string; // Puede o no existir en detenidos
+  localidad?: string; // Puede o no existir en detenidos
+  region?: string; // Puede o no existir en detenidos
   nombre: string;
   motivoDetencion: string;
   estadoProceso: string;
   observaciones?: string;
+  nota?: string;
 }
 
 export interface Vehiculo {
   id: string;
   numeroCaso: string;
+  // Campos reales de la tabla vehiculos
   tipo: string;
   marca: string;
   color: string;
   detalle: string;
-  provinciaMunicipio: string;
+  provinciamunicipio: string; // Campo correcto en minúsculas
   fecha: string;
+  // Campos que pueden existir
+  hora?: string;
+  localidad?: string;
+  region?: string;
+  observaciones?: string;
+  nota?: string;
 }
 
 export interface Incautacion {
   id: string;
   numeroCaso: string;
   fecha: string;
-  hora: string;
-  provincia: string;
-  localidad: string;
-  region: string;
+  hora?: string;
+  provinciamunicipio?: string; // Puede o no existir en incautaciones
+  localidad?: string; // Puede o no existir en incautaciones
+  region?: string; // Puede o no existir en incautaciones
   tipoIncautacion: string;
   descripcion: string;
   cantidad: number;
@@ -61,6 +70,7 @@ export interface Incautacion {
   estado: string;
   custodio: string;
   observaciones?: string;
+  nota?: string;
 }
 
 export type TableType = 'notas_informativas' | 'detenidos' | 'vehiculos' | 'incautaciones';
@@ -78,28 +88,28 @@ export const TABLE_METADATA: Record<TableType, TableMetaData> = {
     tableName: 'notas_informativas',
     displayName: 'Notas Informativas',
     primaryKey: 'id',
-    editableFields: ['fecha', 'hora', 'provincia', 'localidad', 'region', 'tipoActividad', 'areaTemática', 'notificados', 'procuraduria', 'resultado', 'observaciones'],
-    requiredFields: ['numeroCaso', 'fecha', 'provincia', 'tipoActividad']
+    editableFields: ['fecha', 'hora', 'provinciamunicipio', 'localidad', 'region', 'tipoActividad', 'areaTemática', 'notificados', 'procuraduria', 'resultado', 'observaciones', 'nota'],
+    requiredFields: ['numeroCaso', 'fecha', 'tipoActividad']
   },
   detenidos: {
     tableName: 'detenidos',
     displayName: 'Detenidos',
     primaryKey: 'id',
-    editableFields: ['fecha', 'hora', 'provincia', 'localidad', 'region', 'nombre', 'motivoDetencion', 'estadoProceso', 'observaciones'],
+    editableFields: ['fecha', 'hora', 'provinciamunicipio', 'nombre', 'motivoDetencion', 'estadoProceso', 'observaciones', 'nota'],
     requiredFields: ['numeroCaso', 'fecha', 'nombre']
   },
   vehiculos: {
     tableName: 'vehiculos',
     displayName: 'Vehículos',
     primaryKey: 'id',
-    editableFields: ['numeroCaso', 'tipo', 'marca', 'color', 'detalle', 'provinciaMunicipio', 'fecha'],
-    requiredFields: ['numeroCaso', 'tipo', 'marca', 'provinciaMunicipio', 'fecha']
+    editableFields: ['tipo', 'marca', 'color', 'detalle', 'provinciamunicipio', 'fecha', 'observaciones', 'nota'],
+    requiredFields: ['numeroCaso', 'tipo', 'fecha']
   },
   incautaciones: {
     tableName: 'incautaciones',
     displayName: 'Incautaciones',
     primaryKey: 'id',
-    editableFields: ['fecha', 'hora', 'provincia', 'localidad', 'region', 'tipoIncautacion', 'descripcion', 'cantidad', 'unidadMedida', 'valorEstimado', 'estado', 'custodio', 'observaciones'],
+    editableFields: ['fecha', 'hora', 'provinciamunicipio', 'tipoIncautacion', 'descripcion', 'cantidad', 'unidadMedida', 'valorEstimado', 'estado', 'custodio', 'observaciones', 'nota'],
     requiredFields: ['numeroCaso', 'fecha', 'tipoIncautacion', 'descripcion', 'cantidad']
   }
 };

@@ -7,14 +7,15 @@ export default defineConfig({
   server: {
     proxy: {
       '/supabase': {
-        target: 'https://154.38.164.2:8443',
+        target: 'https://nnsupabasenn.coman2uniformes.com',
         changeOrigin: true,
-        secure: false, // Permitir certificados auto-firmados
+        secure: false,
         rewrite: (path) => path.replace(/^\/supabase/, ''),
-        configure: (proxy) => {
-          proxy.on('proxyReq', (proxyReq) => {
-            // Agregar headers necesarios
+        configure: (proxy, options) => {
+          proxy.on('proxyReq', (proxyReq, req, res) => {
             proxyReq.setHeader('Access-Control-Allow-Origin', '*');
+            proxyReq.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+            proxyReq.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, apikey');
           });
         }
       }

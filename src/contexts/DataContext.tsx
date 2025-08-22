@@ -48,16 +48,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       setLoading(true);
       const supabaseService = new SupabaseService();
+      let tablesData: SheetData[] = [];
       
       // Si hay tablas específicas configuradas, usarlas
       if (CONFIG.SUPABASE_TABLES && CONFIG.SUPABASE_TABLES.length > 0) {
-        const tablesData = await supabaseService.getMultipleTables(CONFIG.SUPABASE_TABLES);
+        tablesData = await supabaseService.getMultipleTables(CONFIG.SUPABASE_TABLES);
         setSheets(tablesData);
       } else {
         // Intentar obtener todas las tablas disponibles
         const allTables = await supabaseService.getAllTables();
         if (allTables.length > 0) {
-          const tablesData = await supabaseService.getMultipleTables(allTables);
+          tablesData = await supabaseService.getMultipleTables(allTables);
           setSheets(tablesData);
         } else {
           setError("No se encontraron tablas en Supabase. Configura SUPABASE_TABLES en config.ts");
@@ -65,6 +66,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return;
         }
       }
+
+      // Ejecutar validación de integridad de datos al cargar
+      const validation = analyticsService.validateDataIntegrity(tablesData);
+      if (validation.errors.length > 0) {
+        console.error('❌ Errores de integridad de datos:', validation.errors);
+      }
+      if (validation.warnings.length > 0) {
+        console.warn('⚠️ Advertencias de integridad de datos:', validation.warnings);
+      }
+      console.log('📊 Estadísticas de datos:', validation.stats);
       
       setError(null);
     } catch (err: any) {
@@ -94,7 +105,23 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [sheets, analyticsService]);
 
   const filteredCases = useMemo(() => {
-    return analyticsService.applyFilters(cases, filters);
+    const result = analyticsService.applyFilters(cases, filters);
+    
+    // Debug logging para entender el filtrado
+    console.log('🔍 DataContext - Filtrado de casos:', {
+      casesTotal: cases?.length || 0,
+      filteredTotal: result?.length || 0,
+      filtrosActivos: filters,
+      hasDateFilter: !!(filters.dateFrom || filters.dateTo),
+      hasOtherFilters: !!(
+        filters.provincia?.length > 0 ||
+        filters.region?.length > 0 ||
+        filters.tipoActividad?.length > 0 ||
+        filters.searchText
+      )
+    });
+    
+    return result;
   }, [cases, filters, analyticsService]);
 
   // Helper function to update case in database
@@ -114,7 +141,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         tipoactividad: updatedCase.tipoActividad,
         areatematica: updatedCase.areaTemática,
         notificados: String(updatedCase.notificados || ''),
-        procuraduria: updatedCase.procuraduria ? 'SI' : 'NO',
+        procuraduria: updatedCase.procuraduria, // Ya es string, no convertir
         resultado: updatedCase.resultado
       };
 

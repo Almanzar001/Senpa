@@ -2,25 +2,6 @@ import type { EnvironmentalCase } from './environmentalAnalytics';
 import type { NotaInformativa, Detenido, Vehiculo, Incautacion } from '../types/tableTypes';
 
 export class DataMapperService {
-  // Helper method to count related records by numeroCaso
-  static countRelatedRecords(cases: EnvironmentalCase[], numeroCaso: string, recordType: 'detenidos' | 'vehiculos' | 'incautaciones'): number {
-    // This will be implemented when we have access to the actual table data
-    // For now, we'll use the existing logic but this is where we'd query the related tables
-    const relatedCase = cases.find(c => c.numeroCaso === numeroCaso);
-    if (!relatedCase) return 0;
-    
-    switch (recordType) {
-      case 'detenidos':
-        return relatedCase.detenidos || 0;
-      case 'vehiculos': 
-        return relatedCase.vehiculosDetenidos || 0;
-      case 'incautaciones':
-        return relatedCase.incautaciones?.length || 0;
-      default:
-        return 0;
-    }
-  }
-  
   // Mapear EnvironmentalCase a NotaInformativa con filtro opcional
   static mapToNotaInformativa(cases: EnvironmentalCase[], filterType?: string): NotaInformativa[] {
     let filteredCases = cases;
@@ -40,15 +21,15 @@ export class DataMapperService {
           break;
         case 'notificados':
           filteredCases = cases.filter(c => {
-            const notificadosInfo = c.notificadosInfo;
-            return notificadosInfo && 
-                   typeof notificadosInfo === 'string' && 
-                   notificadosInfo.trim() !== '';
+            const notificados = c.notificados;
+            return notificados && 
+                   typeof notificados === 'string' && 
+                   notificados.trim() !== '';
           });
           break;
         case 'procuraduria':
           filteredCases = cases.filter(c => 
-            c.procuraduria === true
+            c.procuraduria && (c.procuraduria.toUpperCase() === 'SI' || c.procuraduria.toLowerCase() === 'si')
           );
           break;
       }
@@ -59,21 +40,16 @@ export class DataMapperService {
       numeroCaso: envCase.numeroCaso,
       fecha: envCase.fecha,
       hora: envCase.hora,
-      provincia: envCase.provincia,
+      provinciamunicipio: envCase.provincia,
       localidad: envCase.localidad,
       region: envCase.region,
       tipoActividad: envCase.tipoActividad,
       areaTemática: envCase.areaTemática,
-      notificados: envCase.notificadosInfo || '',
+      notificados: typeof envCase.notificados === 'string' ? envCase.notificados : '',
       procuraduria: envCase.procuraduria,
       resultado: envCase.resultado || '',
       observaciones: '',
-      coordenadas: envCase.coordenadas,
-      nota: (envCase as any).nota || '',
-      // Add counts for related tables
-      detenidos: DataMapperService.countRelatedRecords(filteredCases, envCase.numeroCaso, 'detenidos'),
-      vehiculosDetenidos: DataMapperService.countRelatedRecords(filteredCases, envCase.numeroCaso, 'vehiculos'),
-      incautacionesCount: DataMapperService.countRelatedRecords(filteredCases, envCase.numeroCaso, 'incautaciones')
+      coordenadas: envCase.coordenadas
     }));
   }
 
@@ -91,7 +67,7 @@ export class DataMapperService {
               numeroCaso: envCase.numeroCaso,
               fecha: envCase.fecha,
               hora: envCase.hora,
-              provincia: envCase.provincia,
+              provinciamunicipio: envCase.provincia,
               localidad: envCase.localidad,
               region: envCase.region,
               nombre: detenidoInfo.nombre || 'No especificado',
@@ -108,7 +84,7 @@ export class DataMapperService {
               numeroCaso: envCase.numeroCaso,
               fecha: envCase.fecha,
               hora: envCase.hora,
-              provincia: envCase.provincia,
+              provinciamunicipio: envCase.provincia,
               localidad: envCase.localidad,
               region: envCase.region,
               nombre: `Detenido ${i + 1}`,
@@ -137,25 +113,39 @@ export class DataMapperService {
               id: `vehiculo_${envCase.numeroCaso}_${index}`,
               numeroCaso: envCase.numeroCaso,
               fecha: envCase.fecha,
-              tipo: vehiculoInfo.tipo || 'No especificado',
+              // Campos reales disponibles
+              tipo: vehiculoInfo.tipo || 'Vehículo',
               marca: vehiculoInfo.marca || 'No especificada',
               color: vehiculoInfo.color || 'No especificado',
-              detalle: `Región: ${envCase.region}, Localidad: ${envCase.localidad}`,
-              provinciaMunicipio: `${envCase.provincia} - ${envCase.localidad}`
+              detalle: `Vehículo incautado en operativo ${envCase.tipoActividad || 'ambiental'}`,
+              provinciaMunicipio: vehiculoInfo.provinciaMunicipio || envCase.provincia || 'No especificado',
+              // Campos de ubicación
+              hora: envCase.hora,
+              provinciamunicipio: envCase.provincia,
+              localidad: envCase.localidad,
+              region: envCase.region,
+              observaciones: ''
             });
           });
         } else {
-          // Si no hay info detallada, crear registros genéricos basados en el conteo
+          // Si no hay info detallada, crear registros genéricos basados en la nota informativa
           for (let i = 0; i < envCase.vehiculosDetenidos; i++) {
             vehiculos.push({
               id: `vehiculo_${envCase.numeroCaso}_${i}`,
               numeroCaso: envCase.numeroCaso,
               fecha: envCase.fecha,
+              // Campos genéricos
               tipo: 'Vehículo',
               marca: 'No especificada',
               color: 'No especificado',
-              detalle: `Caso: ${envCase.numeroCaso}, Región: ${envCase.region}`,
-              provinciaMunicipio: `${envCase.provincia} - ${envCase.localidad}`
+              detalle: `Vehículo detenido en operativo ${envCase.tipoActividad || 'ambiental'}`,
+              provinciaMunicipio: envCase.provincia || 'No especificado',
+              // Campos de ubicación
+              hora: envCase.hora,
+              provinciamunicipio: envCase.provincia,
+              localidad: envCase.localidad,
+              region: envCase.region,
+              observaciones: `Caso: ${envCase.numeroCaso}`
             });
           }
         }
@@ -179,7 +169,7 @@ export class DataMapperService {
               numeroCaso: envCase.numeroCaso,
               fecha: envCase.fecha,
               hora: envCase.hora,
-              provincia: envCase.provincia,
+              provinciamunicipio: envCase.provincia,
               localidad: envCase.localidad,
               region: envCase.region,
               tipoIncautacion: incautacionInfo.tipo || 'No especificado',
@@ -215,7 +205,7 @@ export class DataMapperService {
               numeroCaso: envCase.numeroCaso,
               fecha: envCase.fecha,
               hora: envCase.hora,
-              provincia: envCase.provincia,
+              provinciamunicipio: envCase.provincia,
               localidad: envCase.localidad,
               region: envCase.region,
               tipoIncautacion: descripcion,
@@ -262,7 +252,7 @@ export class DataMapperService {
         region: nota.region,
         tipoActividad: nota.tipoActividad,
         areaTemática: nota.areaTemática,
-        notificados: String(nota.notificados || ''),
+        notificados: String(typeof nota.notificados === 'number' ? nota.notificados : parseInt(String(nota.notificados || 0)) || 0),
         procuraduria: nota.procuraduria,
         resultado: nota.resultado
       }),

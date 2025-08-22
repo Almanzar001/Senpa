@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useSearchParams, useLocation } from 'react-router-dom';
 import {
   Typography,
@@ -6,95 +6,34 @@ import {
   CardContent,
   Breadcrumbs,
   Alert,
-  Box
+  Box,
+  Chip
 } from '@mui/material';
 import { 
-  ArrowBack as BackIcon
+  ArrowBack as BackIcon,
+  FilterList as FilterIcon
 } from '@mui/icons-material';
 import type { TableType, NotaInformativa, Detenido, Vehiculo, Incautacion } from '../types/tableTypes';
-import { 
-  notasInformativasService,
-  detenidosService,
-  vehiculosService,
-  incautacionesService
-} from '../services/tableServices';
+import { supabaseCrudService } from '../services/supabaseCrud';
 import GenericTable from './GenericTable';
 import { useData } from '../contexts/DataContext';
 import { usePermissions } from '../hooks/usePermissions';
 import { DataMapperService } from '../services/dataMapper';
 import { enumOptionsService } from '../services/enumOptions';
+import { logFilterPersistence } from '../utils/filterPersistence';
+import { useFiltersFromURL } from '../hooks/useFiltersFromURL';
+import EnvironmentalAnalyticsService from '../services/environmentalAnalytics';
 
 const OperationsPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const location = useLocation();
-  const { filteredCases, loading: dataLoading, error: dataError, updateCase, filters } = useData();
+  const { cases, loading: dataLoading, error: dataError, updateCase } = useData();
   const permissions = usePermissions();
   const [error, setError] = useState<string | null>(null);
-
-  // Función para obtener vehículos directamente de la base de datos
-  const fetchVehiculosFromDB = async (): Promise<Vehiculo[]> => {
-    try {
-      const { supabase } = await import('../services/supabase');
-      console.log('🟦 Consultando tabla vehiculos directamente...');
-      console.log('🟦 Filtros de fecha aplicados:', { 
-        dateFrom: filters.dateFrom, 
-        dateTo: filters.dateTo 
-      });
-      
-      // Construir la consulta base
-      let query = supabase
-        .from('vehiculos')
-        .select('*');
-      
-      // Aplicar filtros de fecha si existen
-      if (filters.dateFrom) {
-        query = query.gte('fecha', filters.dateFrom);
-        console.log('🟦 Aplicando filtro fecha desde:', filters.dateFrom);
-      }
-      
-      if (filters.dateTo) {
-        query = query.lte('fecha', filters.dateTo);
-        console.log('🟦 Aplicando filtro fecha hasta:', filters.dateTo);
-      }
-      
-      // Ordenar por fecha
-      query = query.order('fecha', { ascending: false });
-      
-      const { data, error } = await query;
-      
-      if (error) {
-        console.error('❌ Error consultando tabla vehiculos:', error);
-        throw error;
-      }
-      
-      if (!data || data.length === 0) {
-        console.log('⚠️ No se encontraron vehículos en la BD para los filtros aplicados');
-        return [];
-      }
-      
-      console.log('✅ Vehículos obtenidos de BD (con filtros):', data.length);
-      console.log('🟦 Muestra de datos filtrados:', data.slice(0, 2));
-      
-      // Mapear los datos de la BD al formato esperado por la interfaz
-      const vehiculos: Vehiculo[] = data.map(row => ({
-        id: row.id || `vehiculo_${row.numerocaso || Date.now()}`,
-        numeroCaso: row.numerocaso || '',
-        tipo: row.tipo || '',
-        marca: row.marca || '',
-        color: row.color || '',
-        detalle: row.detalle || '',
-        provinciaMunicipio: row.provinciamunicipio || '',
-        fecha: row.fecha || ''
-      }));
-      
-      console.log('✅ Vehículos mapeados con filtros:', vehiculos.length);
-      return vehiculos;
-      
-    } catch (error) {
-      console.error('❌ Error en fetchVehiculosFromDB:', error);
-      return [];
-    }
-  };
+  
+  // Obtener filtros persistidos desde la URL
+  const { filtersFromURL, hasPersistedFilters, environmentalFilters, source, isFromExecutive } = useFiltersFromURL();
+  const analyticsService = React.useMemo(() => new EnvironmentalAnalyticsService(), []);
   
   // Data state for each table type
   const [notasData, setNotasData] = useState<NotaInformativa[]>([]);
@@ -107,7 +46,243 @@ const OperationsPage: React.FC = () => {
   const pathSegments = location.pathname.split('/');
   const urlType = pathSegments[pathSegments.length - 1];
   
+  // URL de regreso determinada por el origen
+  // Fallback: si no hay información de origen y no hay filtros persistidos,
+  // asumir que viene del dashboard principal (/dashboard)
+  const backToDashboardUrl = isFromExecutive ? '/' : '/dashboard';
+
   
+  // Determine current table type based on URL or filter
+  const getCurrentTableType = (): TableType => {
+    if (urlType === 'detenidos') return 'detenidos';
+    if (urlType === 'vehiculos') return 'vehiculos';
+    if (urlType === 'incautaciones') return 'incautaciones';
+    if (filterType === 'detenidos') return 'detenidos';
+    if (filterType === 'vehiculos') return 'vehiculos';
+    if (filterType === 'incautaciones') return 'incautaciones';
+    return 'notas_informativas';
+  };
+
+  // Helper function to get filtered case numbers
+  const getFilteredCaseNumbers = async (): Promise<Set<string> | null> => {
+    if (!hasPersistedFilters || !environmentalFilters) {
+      return null;
+    }
+    
+    const notasData = await supabaseCrudService.getAll('notas_informativas', { limit: 1000 });
+    const environmentalCases = (notasData as NotaInformativa[]).map(nota => ({
+      numeroCaso: nota.numeroCaso,
+      fecha: nota.fecha,
+      hora: nota.hora,
+      provincia: nota.provinciamunicipio || '',
+      localidad: nota.localidad || '',
+      region: nota.region || '',
+      tipoActividad: nota.tipoActividad,
+      areaTemática: nota.areaTemática || '',
+      detenidos: 0, 
+      vehiculosDetenidos: 0, 
+      incautaciones: [],
+      notificados: nota.notificados || '',
+      notificadosCount: 0,
+      procuraduria: nota.procuraduria || 'NO',
+      resultado: nota.resultado || ''
+    }));
+    
+    const filteredCases = analyticsService.applyFilters(environmentalCases, environmentalFilters);
+    return new Set(filteredCases.map(c => c.numeroCaso));
+  };
+
+  // Optimized data loading with lazy loading and specific queries
+  useEffect(() => {
+    const initializeData = async () => {
+      try {
+        // Solo cargar los datos necesarios según el tipo de tabla actual
+        const currentTableType = getCurrentTableType();
+        
+        // Cargar solo la tabla específica que se va a mostrar
+        switch (currentTableType) {
+          case 'notas_informativas':
+            // Para filtros específicos, usar consultas optimizadas
+            if (filterType === 'procuraduria') {
+              const { supabase } = await import('../services/supabase');
+              const { data: procuraduriaData, error } = await supabase
+                .from('notas_informativas')
+                .select('id, numerocaso, fecha, provinciamunicipio, tipoactividad, procuraduria')
+                .eq('procuraduria', 'SI')
+                .order('fecha', { ascending: false })
+                .limit(1000); // Limitar resultados para mejor performance
+              
+              if (error) {
+                setError(`Error cargando datos: ${error.message}`);
+                return;
+              }
+              
+              const mappedData: NotaInformativa[] = (procuraduriaData || []).map(item => ({
+                id: item.id,
+                numeroCaso: item.numerocaso,
+                fecha: item.fecha,
+                hora: '',
+                provinciamunicipio: item.provinciamunicipio || '',
+                localidad: '',
+                region: '',
+                tipoActividad: item.tipoactividad,
+                areaTemática: '',
+                notificados: '',
+                procuraduria: item.procuraduria,
+                resultado: ''
+              }));
+              
+              setNotasData(mappedData);
+            } else {
+              // Para otros filtros en notas_informativas, cargar con límite para mejor performance
+              const notasDataRaw = await supabaseCrudService.getAll('notas_informativas', {
+                limit: 1000, // Limitar resultados iniciales
+                fields: ['id', 'numerocaso', 'fecha', 'hora', 'provinciamunicipio', 'localidad', 'region', 'tipoactividad', 'areatematica', 'notificados', 'procuraduria', 'resultado']
+              });
+              let filteredNotasData = notasDataRaw as NotaInformativa[];
+              
+              // Aplicar filtro específico
+              if (filterType) {
+                switch (filterType) {
+                  case 'operativos':
+                    filteredNotasData = filteredNotasData.filter(nota => 
+                      nota.tipoActividad?.toLowerCase().includes('operativo')
+                    );
+                    break;
+                  case 'patrullas':
+                    filteredNotasData = filteredNotasData.filter(nota => 
+                      nota.tipoActividad?.toLowerCase().includes('patrulla')
+                    );
+                    break;
+                  case 'notificados':
+                    filteredNotasData = filteredNotasData.filter(nota => 
+                      nota.notificados && nota.notificados.toString().trim() !== ''
+                    );
+                    break;
+                }
+              }
+              
+              // Aplicar filtros persistidos del dashboard si existen
+              if (hasPersistedFilters && environmentalFilters) {
+                console.log('🟦 OperationsPage - Aplicando filtros persistidos del dashboard');
+                
+                // Convertir NotaInformativa[] a EnvironmentalCase[] para usar analytics service
+                const environmentalCases = filteredNotasData.map(nota => ({
+                  numeroCaso: nota.numeroCaso,
+                  fecha: nota.fecha,
+                  hora: nota.hora,
+                  provincia: nota.provinciamunicipio || '',
+                  localidad: nota.localidad || '',
+                  region: nota.region || '',
+                  tipoActividad: nota.tipoActividad,
+                  areaTemática: nota.areaTemática || '',
+                  detenidos: 0, 
+                  vehiculosDetenidos: 0, 
+                  incautaciones: [],
+                  notificados: nota.notificados || '',
+                  notificadosCount: 0,
+                  procuraduria: nota.procuraduria || 'NO',
+                  resultado: nota.resultado || ''
+                }));
+                
+                // Aplicar filtros usando analytics service
+                const filteredEnvironmentalCases = analyticsService.applyFilters(
+                  environmentalCases, 
+                  environmentalFilters
+                );
+                
+                // Convertir de vuelta a NotaInformativa[]
+                filteredNotasData = filteredEnvironmentalCases.map(envCase => ({
+                  id: envCase.numeroCaso,
+                  numeroCaso: envCase.numeroCaso,
+                  fecha: envCase.fecha,
+                  hora: envCase.hora,
+                  provinciamunicipio: envCase.provincia,
+                  localidad: envCase.localidad,
+                  region: envCase.region,
+                  tipoActividad: envCase.tipoActividad,
+                  areaTemática: envCase.areaTemática,
+                  notificados: envCase.notificados,
+                  procuraduria: envCase.procuraduria,
+                  resultado: envCase.resultado
+                }));
+                
+                console.log('🟦 OperationsPage - Casos después filtros persistidos:', filteredNotasData.length);
+              }
+              
+              setNotasData(filteredNotasData);
+            }
+            break;
+            
+          case 'detenidos':
+            const detenidosDataRaw = await supabaseCrudService.getAll('detenidos', {
+              limit: 500,
+              fields: ['id', 'numerocaso', 'fecha', 'hora', 'provinciamunicipio', 'localidad', 'region', 'nombre', 'motivodetencion', 'estadoproceso']
+            });
+            let filteredDetenidosData = detenidosDataRaw as Detenido[];
+            
+            // Aplicar filtros persistidos si existen
+            const allowedCaseNumbers = await getFilteredCaseNumbers();
+            if (allowedCaseNumbers) {
+              filteredDetenidosData = filteredDetenidosData.filter(detenido => 
+                allowedCaseNumbers.has(detenido.numeroCaso)
+              );
+              console.log('🟦 OperationsPage - Detenidos después filtros persistidos:', filteredDetenidosData.length);
+            }
+            
+            setDetenidosData(filteredDetenidosData);
+            break;
+            
+          case 'vehiculos':
+            const vehiculosDataRaw = await supabaseCrudService.getAll('vehiculos', {
+              limit: 500,
+              fields: ['id', 'numerocaso', 'tipo', 'marca', 'color', 'detalle', 'provinciamunicipio', 'fecha']
+            });
+            let filteredVehiculosData = vehiculosDataRaw as Vehiculo[];
+            
+            // Aplicar filtros persistidos si existen
+            const allowedCaseNumbersVeh = await getFilteredCaseNumbers();
+            if (allowedCaseNumbersVeh) {
+              filteredVehiculosData = filteredVehiculosData.filter(vehiculo => 
+                allowedCaseNumbersVeh.has(vehiculo.numeroCaso)
+              );
+              console.log('🟦 OperationsPage - Vehículos después filtros persistidos:', filteredVehiculosData.length);
+            }
+            
+            setVehiculosData(filteredVehiculosData);
+            break;
+            
+          case 'incautaciones':
+            const incautacionesDataRaw = await supabaseCrudService.getAll('incautaciones', {
+              limit: 500,
+              fields: ['id', 'numerocaso', 'fecha', 'hora', 'provinciamunicipio', 'tipoincautacion', 'descripcion', 'cantidad']
+            });
+            let filteredIncautacionesData = incautacionesDataRaw as Incautacion[];
+            
+            // Aplicar filtros persistidos si existen
+            const allowedCaseNumbersInc = await getFilteredCaseNumbers();
+            if (allowedCaseNumbersInc) {
+              filteredIncautacionesData = filteredIncautacionesData.filter(incautacion => 
+                allowedCaseNumbersInc.has(incautacion.numeroCaso)
+              );
+              console.log('🟦 OperationsPage - Incautaciones después filtros persistidos:', filteredIncautacionesData.length);
+            }
+            
+            setIncautacionesData(filteredIncautacionesData);
+            break;
+        }
+
+        setError(null);
+      } catch (err) {
+        console.error('❌ OperationsPage - Error inicializando datos:', err);
+        setError(err instanceof Error ? err.message : 'Error al cargar datos');
+      }
+    };
+
+    // Inicializar datos - carga optimizada basada en la tabla específica
+    initializeData();
+  }, [filterType, urlType]); // Eliminamos dependencia de cases para mejor performance
+
   // Determine which table to show based on filter
   const getTableTypeFromFilter = (filter: string): TableType | null => {
     switch (filter) {
@@ -126,66 +301,8 @@ const OperationsPage: React.FC = () => {
         return null;
     }
   };
-  
-  // Determine current table type based on URL or filter
-  const getCurrentTableType = (): TableType => {
-    if (urlType === 'detenidos') return 'detenidos';
-    if (urlType === 'vehiculos') return 'vehiculos';
-    if (urlType === 'incautaciones') return 'incautaciones';
-    
-    // Handle filter from search params
-    if (filterType) {
-      const tableFromFilter = getTableTypeFromFilter(filterType);
-      if (tableFromFilter) return tableFromFilter;
-    }
-    
-    return 'notas_informativas';
-  };
 
   const currentTableType = getCurrentTableType();
-
-  // Load and map data from existing EnvironmentalCases
-  useEffect(() => {
-    const loadData = async () => {
-      if (filteredCases && filteredCases.length > 0) {
-        try {
-          // Update enum options with current data
-          await enumOptionsService.updateOptions(filteredCases);
-          
-          // Map EnvironmentalCase data to specific table formats
-          const mappedNotas = DataMapperService.mapToNotaInformativa(filteredCases, filterType || undefined);
-          const mappedDetenidos = DataMapperService.mapToDetenidos(filteredCases);
-          // Para vehículos, consultar directamente la tabla de BD en lugar de mapear desde EnvironmentalCase
-          const mappedVehiculos = currentTableType === 'vehiculos' ? 
-            await fetchVehiculosFromDB() : 
-            DataMapperService.mapToVehiculos(filteredCases);
-          const mappedIncautaciones = DataMapperService.mapToIncautaciones(filteredCases);
-
-          // Clear services and populate with mapped data
-          notasInformativasService.items.clear();
-          detenidosService.items.clear();
-          vehiculosService.items.clear();
-          incautacionesService.items.clear();
-
-          mappedNotas.forEach(nota => notasInformativasService.items.set(nota.id, nota));
-          mappedDetenidos.forEach(detenido => detenidosService.items.set(detenido.id, detenido));
-          mappedVehiculos.forEach(vehiculo => vehiculosService.items.set(vehiculo.id, vehiculo));
-          mappedIncautaciones.forEach(incautacion => incautacionesService.items.set(incautacion.id, incautacion));
-
-          // Update state
-          setNotasData(mappedNotas);
-          setDetenidosData(mappedDetenidos);
-          setVehiculosData(mappedVehiculos);
-          setIncautacionesData(mappedIncautaciones);
-          setError(null);
-        } catch (err) {
-          setError(err instanceof Error ? err.message : 'Error al mapear datos');
-        }
-      }
-    };
-    
-    loadData();
-  }, [filteredCases, filterType, currentTableType, filters.dateFrom, filters.dateTo]);
 
   const getFilterDisplayName = (type: string) => {
     const names: Record<string, string> = {
@@ -216,159 +333,72 @@ const OperationsPage: React.FC = () => {
   // Generic CRUD handlers
   const handleUpdate = async (item: any) => {
     try {
-      // First update the local service data
+      console.log(`🟦 OperationsPage - Actualizando ${currentTableType}:`, item);
+      
+      // Actualizar en Supabase usando el nuevo servicio
+      const updatedItem = await supabaseCrudService.update(currentTableType, item.id, item);
+      
+      // Actualizar el estado local de manera optimizada sin recargar todos los datos
       switch (currentTableType) {
         case 'notas_informativas':
-          notasInformativasService.update(item as NotaInformativa);
-          setNotasData(notasInformativasService.getAll());
-          
-          // Update the original EnvironmentalCase for notas_informativas
-          const nota = item as NotaInformativa;
-          const originalCase = filteredCases.find(c => c.numeroCaso === nota.numeroCaso);
-          
-          if (originalCase) {
-            const updatedCase = {
-              ...originalCase,
-              fecha: nota.fecha,
-              hora: nota.hora,
-              provincia: nota.provincia,
-              localidad: nota.localidad,
-              region: nota.region,
-              tipoActividad: nota.tipoActividad,
-              areaTemática: nota.areaTemática,
-              notificados: String(nota.notificados || ''),
-              notificadosInfo: String(nota.notificados || ''),
-              procuraduria: nota.procuraduria,
-              resultado: nota.resultado
-            };
-            
-            await updateCase(updatedCase);
-            
-            // Force immediate re-mapping with updated cases
-            const updatedCases = filteredCases.map(c => 
-              c.numeroCaso === updatedCase.numeroCaso ? updatedCase : c
-            );
-            const remappedNotas = DataMapperService.mapToNotaInformativa(updatedCases, filterType || undefined);
-            setNotasData(remappedNotas);
-          }
+          // Actualizar solo el item específico en el estado local
+          setNotasData(prev => prev.map(nota => 
+            nota.id === item.id ? updatedItem as NotaInformativa : nota
+          ));
           break;
+          
         case 'detenidos':
-          detenidosService.update(item as Detenido);
-          setDetenidosData(detenidosService.getAll());
+          setDetenidosData(prev => prev.map(detenido => 
+            detenido.id === item.id ? updatedItem as Detenido : detenido
+          ));
           break;
-        case 'vehiculos':
-          console.log('🟦 Actualizando vehículo en BD:', item);
-          const vehiculo = item as Vehiculo;
           
-          try {
-            const { supabase } = await import('../services/supabase');
-            
-            const { data, error } = await supabase
-              .from('vehiculos')
-              .update({
-                numerocaso: vehiculo.numeroCaso,
-                tipo: vehiculo.tipo,
-                marca: vehiculo.marca,
-                color: vehiculo.color,
-                detalle: vehiculo.detalle,
-                provinciamunicipio: vehiculo.provinciaMunicipio,
-                fecha: vehiculo.fecha
-              })
-              .eq('id', vehiculo.id);
-            
-            if (error) {
-              console.error('❌ Error actualizando vehículo en BD:', error);
-              throw error;
-            }
-            
-            console.log('✅ Vehículo actualizado en BD exitosamente');
-            
-            // Recargar datos de vehículos desde BD
-            const updatedVehiculos = await fetchVehiculosFromDB();
-            setVehiculosData(updatedVehiculos);
-            
-          } catch (error) {
-            console.error('❌ Error en actualización de vehículo:', error);
-            setError('Error al actualizar el vehículo');
-          }
+        case 'vehiculos':
+          setVehiculosData(prev => prev.map(vehiculo => 
+            vehiculo.id === item.id ? updatedItem as Vehiculo : vehiculo
+          ));
           break;
+          
         case 'incautaciones':
-          incautacionesService.update(item as Incautacion);
-          setIncautacionesData(incautacionesService.getAll());
+          setIncautacionesData(prev => prev.map(incautacion => 
+            incautacion.id === item.id ? updatedItem as Incautacion : incautacion
+          ));
           break;
       }
+      
+      console.log(`✅ OperationsPage - ${currentTableType} actualizado exitosamente`);
     } catch (err) {
+      console.error(`❌ OperationsPage - Error actualizando ${currentTableType}:`, err);
       setError(err instanceof Error ? err.message : 'Error al actualizar');
-    }
-  };
-
-  const handleCreate = (item: any) => {
-    try {
-      switch (currentTableType) {
-        case 'notas_informativas':
-          notasInformativasService.add(item as NotaInformativa);
-          setNotasData(notasInformativasService.getAll());
-          break;
-        case 'detenidos':
-          detenidosService.add(item as Detenido);
-          setDetenidosData(detenidosService.getAll());
-          break;
-        case 'vehiculos':
-          vehiculosService.add(item as Vehiculo);
-          setVehiculosData(vehiculosService.getAll());
-          break;
-        case 'incautaciones':
-          incautacionesService.add(item as Incautacion);
-          setIncautacionesData(incautacionesService.getAll());
-          break;
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al crear');
     }
   };
 
   const handleDelete = async (id: string) => {
     try {
+      console.log(`🟦 OperationsPage - Eliminando ${currentTableType} ID:`, id);
+      
+      // Eliminar de Supabase usando el nuevo servicio
+      await supabaseCrudService.delete(currentTableType, id);
+      
+      // Actualizar el estado local removiendo el item específico
       switch (currentTableType) {
         case 'notas_informativas':
-          notasInformativasService.delete(id);
-          setNotasData(notasInformativasService.getAll());
+          setNotasData(prev => prev.filter(nota => nota.id !== id));
           break;
         case 'detenidos':
-          detenidosService.delete(id);
-          setDetenidosData(detenidosService.getAll());
+          setDetenidosData(prev => prev.filter(detenido => detenido.id !== id));
           break;
         case 'vehiculos':
-          try {
-            const { supabase } = await import('../services/supabase');
-            
-            const { error } = await supabase
-              .from('vehiculos')
-              .delete()
-              .eq('id', id);
-            
-            if (error) {
-              console.error('❌ Error eliminando vehículo de BD:', error);
-              throw error;
-            }
-            
-            console.log('✅ Vehículo eliminado de BD exitosamente');
-            
-            // Recargar datos de vehículos desde BD
-            const updatedVehiculos = await fetchVehiculosFromDB();
-            setVehiculosData(updatedVehiculos);
-            
-          } catch (error) {
-            console.error('❌ Error en eliminación de vehículo:', error);
-            setError('Error al eliminar el vehículo');
-          }
+          setVehiculosData(prev => prev.filter(vehiculo => vehiculo.id !== id));
           break;
         case 'incautaciones':
-          incautacionesService.delete(id);
-          setIncautacionesData(incautacionesService.getAll());
+          setIncautacionesData(prev => prev.filter(incautacion => incautacion.id !== id));
           break;
       }
+      
+      console.log(`✅ OperationsPage - ${currentTableType} eliminado exitosamente`);
     } catch (err) {
+      console.error(`❌ OperationsPage - Error eliminando ${currentTableType}:`, err);
       setError(err instanceof Error ? err.message : 'Error al eliminar');
     }
   };
@@ -392,8 +422,8 @@ const OperationsPage: React.FC = () => {
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center text-red-600">
           <p>Error al cargar los datos: {dataError || error}</p>
-          <Link to="/" className="text-blue-600 hover:underline mt-2 inline-block">
-            Volver al Dashboard
+          <Link to={backToDashboardUrl} className="text-blue-600 hover:underline mt-2 inline-block">
+            {isFromExecutive ? 'Volver al Dashboard Ejecutivo' : 'Volver al Dashboard Principal'}
           </Link>
         </div>
       </div>
@@ -406,8 +436,8 @@ const OperationsPage: React.FC = () => {
         {/* Header */}
         <div className="mb-6">
           <Breadcrumbs className="mb-4">
-            <Link to="/" className="text-blue-600 hover:underline">
-              Dashboard
+            <Link to={backToDashboardUrl} className="text-blue-600 hover:underline">
+              {isFromExecutive ? 'Dashboard Ejecutivo' : 'Dashboard Principal'}
             </Link>
             <Typography color="text.primary">Operaciones Detalladas</Typography>
           </Breadcrumbs>
@@ -418,27 +448,84 @@ const OperationsPage: React.FC = () => {
                 {filterType ? getFilterDisplayName(filterType) : 'Operaciones Detalladas'}
               </h1>
               {filterType && (
-                <Box>
+                <Box className="mb-2">
                   <Typography color="text.secondary">
                     Mostrando tabla específica para: {getFilterDisplayName(filterType)}
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
                     {getFilterDescription(filterType)}
                   </Typography>
-                  {(filters.dateFrom || filters.dateTo) && (
-                    <Typography variant="caption" color="primary.main" sx={{ display: 'block', mt: 0.5 }}>
-                      📅 Filtrado por fechas: {filters.dateFrom || 'Sin inicio'} - {filters.dateTo || 'Sin fin'}
+                </Box>
+              )}
+              
+              {/* Mostrar filtros persistidos si existen */}
+              {hasPersistedFilters && (
+                <Box className="mt-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <FilterIcon fontSize="small" color="primary" />
+                    <Typography variant="subtitle2" color="primary">
+                      Filtros aplicados desde el dashboard:
                     </Typography>
-                  )}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {filtersFromURL.dateFrom && (
+                      <Chip 
+                        label={`Desde: ${filtersFromURL.dateFrom}`}
+                        size="small"
+                        color="primary"
+                        variant="outlined"
+                      />
+                    )}
+                    {filtersFromURL.dateTo && (
+                      <Chip 
+                        label={`Hasta: ${filtersFromURL.dateTo}`}
+                        size="small"
+                        color="primary"
+                        variant="outlined"
+                      />
+                    )}
+                    {filtersFromURL.activeDateFilter && filtersFromURL.activeDateFilter !== 'all' && (
+                      <Chip 
+                        label={`Periodo: ${filtersFromURL.activeDateFilter}`}
+                        size="small"
+                        color="primary"
+                        variant="outlined"
+                      />
+                    )}
+                    {filtersFromURL.provincia && filtersFromURL.provincia.length > 0 && (
+                      <Chip 
+                        label={`Provincias: ${filtersFromURL.provincia.join(', ')}`}
+                        size="small"
+                        color="primary"
+                        variant="outlined"
+                      />
+                    )}
+                    {filtersFromURL.region && filtersFromURL.region.length > 0 && (
+                      <Chip 
+                        label={`Regiones: ${filtersFromURL.region.join(', ')}`}
+                        size="small"
+                        color="primary"
+                        variant="outlined"
+                      />
+                    )}
+                    {filtersFromURL.searchText && (
+                      <Chip 
+                        label={`Búsqueda: "${filtersFromURL.searchText}"`}
+                        size="small"
+                        color="primary"
+                        variant="outlined"
+                      />
+                    )}
+                  </div>
                 </Box>
               )}
             </div>
             <Link
-              to="/"
+              to={backToDashboardUrl}
               className="flex items-center gap-2 px-4 py-2 bg-white border border-neutral-300 rounded-lg hover:bg-neutral-50 transition-colors"
             >
               <BackIcon />
-              Volver al Dashboard
+              {isFromExecutive ? 'Volver al Dashboard Ejecutivo' : 'Volver al Dashboard Principal'}
             </Link>
           </div>
         </div>
@@ -466,18 +553,14 @@ const OperationsPage: React.FC = () => {
 
         {/* Render specific table based on filter */}
         {currentTableType === 'notas_informativas' && (
-          <>
-            <GenericTable
-              tableType="notas_informativas"
-              data={notasData}
-              onUpdate={permissions.canEditRecords ? handleUpdate : () => {}}
-              onDelete={permissions.canDeleteRecords ? handleDelete : () => {}}
-              onCreate={() => {}} // Disabled - data comes from n8n automation
-              loading={loading}
-              title={getFilterDisplayName(filterType!)}
-              allowCreate={false} // Disabled - data comes from n8n automation
-            />
-          </>
+          <GenericTable
+            tableType="notas_informativas"
+            data={notasData}
+            onUpdate={permissions.canEditRecords ? handleUpdate : () => {}}
+            onDelete={permissions.canDeleteRecords ? handleDelete : () => {}}
+            loading={loading}
+            title={getFilterDisplayName(filterType!)}
+          />
         )}
 
         {currentTableType === 'detenidos' && (
@@ -486,10 +569,8 @@ const OperationsPage: React.FC = () => {
             data={detenidosData}
             onUpdate={permissions.canEditRecords ? handleUpdate : () => {}}
             onDelete={permissions.canDeleteRecords ? handleDelete : () => {}}
-            onCreate={() => {}} // Disabled - data comes from n8n automation
             loading={loading}
             title={urlType === 'detenidos' ? 'Detenidos' : getFilterDisplayName(filterType || 'detenidos')}
-            allowCreate={false} // Disabled - data comes from n8n automation
           />
         )}
 
@@ -499,10 +580,8 @@ const OperationsPage: React.FC = () => {
             data={vehiculosData}
             onUpdate={permissions.canEditRecords ? handleUpdate : () => {}}
             onDelete={permissions.canDeleteRecords ? handleDelete : () => {}}
-            onCreate={() => {}} // Disabled - data comes from n8n automation
             loading={loading}
             title={urlType === 'vehiculos' ? 'Vehículos' : getFilterDisplayName(filterType || 'vehiculos')}
-            allowCreate={false} // Disabled - data comes from n8n automation
           />
         )}
 
@@ -512,10 +591,8 @@ const OperationsPage: React.FC = () => {
             data={incautacionesData}
             onUpdate={permissions.canEditRecords ? handleUpdate : () => {}}
             onDelete={permissions.canDeleteRecords ? handleDelete : () => {}}
-            onCreate={() => {}} // Disabled - data comes from n8n automation
             loading={loading}
             title={urlType === 'incautaciones' ? 'Incautaciones' : getFilterDisplayName(filterType || 'incautaciones')}
-            allowCreate={false} // Disabled - data comes from n8n automation
           />
         )}
 

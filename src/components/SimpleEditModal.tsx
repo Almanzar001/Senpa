@@ -34,7 +34,7 @@ interface SimpleEditModalProps {
   onSave: (item: EditableItem) => void;
   item: EditableItem | null;
   tableType: TableType;
-  mode: 'create' | 'edit';
+  mode?: 'create' | 'edit';
 }
 
 const SimpleEditModal: React.FC<SimpleEditModalProps> = ({
@@ -43,7 +43,7 @@ const SimpleEditModal: React.FC<SimpleEditModalProps> = ({
   onSave,
   item,
   tableType,
-  mode
+  mode = 'edit'
 }) => {
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [errors, setErrors] = useState<string[]>([]);
@@ -56,8 +56,11 @@ const SimpleEditModal: React.FC<SimpleEditModalProps> = ({
     if (open) {
       if (mode === 'create') {
         const defaultValues = getDefaultValues(tableType);
+        console.log('🟦 SimpleEditModal - Modo crear, valores por defecto:', defaultValues);
         setFormData(defaultValues);
       } else if (item) {
+        console.log('🟦 SimpleEditModal - Modo editar, item recibido:', item);
+        console.log('🟦 SimpleEditModal - Campos disponibles en item:', Object.keys(item));
         setFormData({ ...item });
       }
       setErrors([]);
@@ -68,9 +71,7 @@ const SimpleEditModal: React.FC<SimpleEditModalProps> = ({
     const baseValues = {
       fecha: new Date().toISOString().split('T')[0],
       hora: new Date().toTimeString().split(' ')[0].substring(0, 5),
-      provincia: '',
-      localidad: '',
-      region: ''
+      provinciamunicipio: ''
     };
 
     switch (type) {
@@ -81,24 +82,18 @@ const SimpleEditModal: React.FC<SimpleEditModalProps> = ({
           tipoActividad: '',
           areaTemática: '',
           notificados: '',
-          procuraduria: false,
+          procuraduria: 'NO', // String value instead of boolean
           resultado: '',
-          observaciones: '',
-          nota: ''
+          observaciones: ''
         };
       case 'detenidos':
         return {
           ...baseValues,
           numeroCaso: '',
           nombre: '',
-          apellido: '',
-          cedula: '',
-          edad: 0,
-          nacionalidad: '',
           motivoDetencion: '',
           estadoProceso: 'En proceso',
-          observaciones: '',
-          nota: ''
+          observaciones: ''
         };
       case 'vehiculos':
         return {
@@ -107,8 +102,9 @@ const SimpleEditModal: React.FC<SimpleEditModalProps> = ({
           marca: '',
           color: '',
           detalle: '',
-          provinciaMunicipio: '',
-          fecha: new Date().toISOString().split('T')[0]
+          provinciamunicipio: '',
+          fecha: new Date().toISOString().split('T')[0],
+          observaciones: ''
         };
       case 'incautaciones':
         return {
@@ -121,11 +117,10 @@ const SimpleEditModal: React.FC<SimpleEditModalProps> = ({
           valorEstimado: 0,
           estado: 'Incautado',
           custodio: '',
-          observaciones: '',
-          nota: ''
+          observaciones: ''
         };
       default:
-        return baseValues;
+        return { numeroCaso: '', fecha: new Date().toISOString().split('T')[0], provinciamunicipio: '' };
     }
   };
 
@@ -211,7 +206,6 @@ const SimpleEditModal: React.FC<SimpleEditModalProps> = ({
       procuraduria: 'Procuraduría',
       resultado: 'Resultado',
       observaciones: 'Observaciones',
-      nota: 'Nota',
       nombre: 'Nombre',
       motivoDetencion: 'Motivo de Detención',
       estadoProceso: 'Estado del Proceso',
@@ -219,32 +213,55 @@ const SimpleEditModal: React.FC<SimpleEditModalProps> = ({
       marca: 'Marca',
       color: 'Color',
       detalle: 'Detalle',
-      provinciaMunicipio: 'Provincia/Municipio',
+      provinciamunicipio: 'Provincia/Municipio',
       tipoIncautacion: 'Tipo de Incautación',
       descripcion: 'Descripción',
       cantidad: 'Cantidad',
       unidadMedida: 'Unidad de Medida',
       valorEstimado: 'Valor Estimado',
-      custodio: 'Custodio'
+      estado: 'Estado',
+      custodio: 'Custodio',
+      // Campos adicionales que podrían aparecer
+      coordenadas: 'Coordenadas',
+      apellido: 'Apellido',
+      cedula: 'Cédula',
+      edad: 'Edad',
+      nacionalidad: 'Nacionalidad',
+      nota: 'Nota'
     };
-    return labels[field] || field;
+    return labels[field] || field.charAt(0).toUpperCase() + field.slice(1);
   };
 
   const getFormFields = (): string[] => {
-    const baseFields = ['numeroCaso', 'fecha', 'hora', 'provincia', 'localidad', 'region'];
-    
-    switch (tableType) {
-      case 'notas_informativas':
-        return [...baseFields, 'tipoActividad', 'areaTemática', 'notificados', 'procuraduria', 'resultado', 'observaciones', 'nota'];
-      case 'detenidos':
-        return [...baseFields, 'nombre', 'motivoDetencion', 'estadoProceso', 'observaciones', 'nota'];
-      case 'vehiculos':
-        return ['numeroCaso', 'tipo', 'marca', 'color', 'detalle', 'provinciaMunicipio', 'fecha'];
-      case 'incautaciones':
-        return [...baseFields, 'tipoIncautacion', 'descripcion', 'cantidad', 'unidadMedida', 'valorEstimado', 'estado', 'custodio', 'observaciones', 'nota'];
-      default:
-        return baseFields;
+    if (mode === 'edit' && item) {
+      // En modo edición, usar solo los campos editables definidos en metadata
+      // pero filtrar los que realmente tienen datos en el item
+      const editableFields = metadata.editableFields.filter(field => {
+        const value = item[field];
+        return value !== null && value !== undefined && value !== '';
+      });
+      
+      // Agregar numeroCaso si no está en editableFields y tiene valor
+      const fieldsToShow = ['numeroCaso'];
+      editableFields.forEach(field => {
+        if (!fieldsToShow.includes(field)) {
+          fieldsToShow.push(field);
+        }
+      });
+      
+      // Filtrar campos que no queremos mostrar
+      const fieldsToExclude = ['created_at', 'nota', 'id', 'localidad', 'provincia'];
+      const finalFields = fieldsToShow.filter(field => !fieldsToExclude.includes(field));
+      
+      console.log('🟦 SimpleEditModal - Campos finales a mostrar:', finalFields);
+      console.log('🟦 SimpleEditModal - Metadatos editableFields:', metadata.editableFields);
+      return finalFields;
     }
+    
+    // En modo creación, usar solo campos editables excluyendo los no deseados
+    const fieldsToExclude = ['created_at', 'nota', 'localidad', 'provincia'];
+    const editableFields = metadata.editableFields.filter(field => !fieldsToExclude.includes(field));
+    return ['numeroCaso', ...editableFields];
   };
 
   const renderField = (field: string) => {
@@ -255,21 +272,18 @@ const SimpleEditModal: React.FC<SimpleEditModalProps> = ({
     if (enumOptionsService.isDropdownField(field)) {
       const options = enumOptionsService.getFieldOptions(field);
       
-      // Special handling for procuraduria (boolean field)
+      // Special handling for procuraduria (string field with 'SI'/'NO' values)
       if (field === 'procuraduria') {
         return (
           <FormControl key={field} fullWidth margin="normal" required={isRequired}>
             <InputLabel>{getFieldLabel(field)}</InputLabel>
             <Select
-              value={value !== undefined ? String(value) : ''}
-              onChange={(e) => handleInputChange(field, e.target.value === 'true')}
+              value={value || 'NO'}
+              onChange={(e) => handleInputChange(field, e.target.value)}
               label={getFieldLabel(field)}
-              >
-              {(options as { value: boolean; label: string }[]).map((option) => (
-                <MenuItem key={String(option.value)} value={String(option.value)}>
-                  {option.label}
-                </MenuItem>
-              ))}
+            >
+              <MenuItem value="SI">SI</MenuItem>
+              <MenuItem value="NO">NO</MenuItem>
             </Select>
           </FormControl>
         );
@@ -297,8 +311,26 @@ const SimpleEditModal: React.FC<SimpleEditModalProps> = ({
       );
     }
 
-    // Number fields
-    if (['año', 'cantidad', 'valorEstimado'].includes(field)) {
+    // Handle special fields
+    if (field === 'coordenadas') {
+      const coords = value as { lat: number; lng: number } | null;
+      const coordString = coords ? `Lat: ${coords.lat}, Lng: ${coords.lng}` : '';
+      return (
+        <TextField
+          key={field}
+          fullWidth
+          label={getFieldLabel(field)}
+          value={coordString}
+          disabled
+          variant="outlined"
+          margin="normal"
+          helperText="Las coordenadas no son editables"
+        />
+      );
+    }
+
+    // Number fields (including edad)
+    if (['cantidad', 'valorEstimado', 'edad'].includes(field)) {
       return (
         <TextField
           key={field}
@@ -350,7 +382,7 @@ const SimpleEditModal: React.FC<SimpleEditModalProps> = ({
     }
 
     // Multiline text fields
-    if (['observaciones', 'descripcion', 'resultado', 'nota', 'detalle'].includes(field)) {
+    if (['observaciones', 'descripcion', 'resultado', 'detalle', 'nota'].includes(field)) {
       return (
         <TextField
           key={field}

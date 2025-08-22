@@ -6,7 +6,7 @@ export interface EnumOptions {
   localidades: string[];
   regiones: string[];
   areasTemáticas: string[];
-  procuraduria: { value: boolean; label: string }[];
+  procuraduria: { value: string; label: string }[];
   estadosProceso: string[];
   estadosGenerales: string[];
   tiposVehiculo: string[];
@@ -190,8 +190,8 @@ export class EnumOptionsService {
       regiones,
       areasTemáticas,
       procuraduria: [
-        { value: true, label: 'Sí' },
-        { value: false, label: 'No' }
+        { value: 'SI', label: 'Sí' },
+        { value: 'NO', label: 'No' }
       ],
       estadosProceso: [
         'En proceso',
@@ -283,8 +283,8 @@ export class EnumOptionsService {
         regiones: ['Región I', 'Región II', 'Región III', 'Región IV', 'Región V'],
         areasTemáticas: ['Suelos y Aguas', 'Recursos Forestales', 'Areas Protegida', 'Gestión Ambiental', 'Costeros y Marinos'],
         procuraduria: [
-          { value: true, label: 'Sí' },
-          { value: false, label: 'No' }
+          { value: 'SI', label: 'Sí' },
+          { value: 'NO', label: 'No' }
         ],
         estadosProceso: ['En proceso', 'Completado', 'Archivado', 'Pendiente'],
         estadosGenerales: ['Activo', 'Retenido', 'Incautado', 'Liberado'],

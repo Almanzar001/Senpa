@@ -23,6 +23,7 @@ import {
   Map as ProvinceIcon
 } from '@mui/icons-material';
 import { type SheetData } from '../services/supabase';
+import { getQuickDateRanges } from '../utils/dateUtils';
 
 export interface FilterOptions {
   dateFrom: string;
@@ -147,19 +148,12 @@ const AdvancedFilters: React.FC<AdvancedFiltersProps> = ({
     return count;
   };
 
-  const today = new Date().toISOString().split('T')[0];
-  const thisWeekStart = new Date();
-  thisWeekStart.setDate(thisWeekStart.getDate() - 7);
-  const thisWeekStartStr = thisWeekStart.toISOString().split('T')[0];
-
-  const thisMonthStart = new Date();
-  thisMonthStart.setDate(1);
-  const thisMonthStartStr = thisMonthStart.toISOString().split('T')[0];
-
+  const dateRanges = getQuickDateRanges();
+  
   const quickDateFilters = [
-    { label: 'Hoy', from: today, to: today },
-    { label: 'Últimos 7 días', from: thisWeekStartStr, to: today },
-    { label: 'Este mes', from: thisMonthStartStr, to: today }
+    { label: 'Hoy', from: dateRanges.today.from, to: dateRanges.today.to },
+    { label: 'Últimos 7 días', from: dateRanges.thisWeek.from, to: dateRanges.thisWeek.to },
+    { label: 'Este mes', from: dateRanges.thisMonth.from, to: dateRanges.thisMonth.to }
   ];
 
   return (
