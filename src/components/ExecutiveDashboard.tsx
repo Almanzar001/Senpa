@@ -17,7 +17,8 @@ import {
   Person as PersonIcon,
   CarRental as CarIcon,
   ManageAccounts as ManageAccountsIcon,
-  Logout as LogoutIcon
+  Logout as LogoutIcon,
+  Refresh as RefreshIcon
 } from '@mui/icons-material';
 import { useData } from '../contexts/DataContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -30,9 +31,10 @@ import EnvironmentalAnalyticsService from '../services/environmentalAnalytics';
 type DateFilter = 'today' | 'yesterday' | 'thisMonth' | 'all';
 
 const ExecutiveDashboard: React.FC = () => {
-  const { cases, filteredCases, loading, error, filters, setFilters } = useData();
+  const { cases, filteredCases, loading, error, filters, setFilters, fetchData } = useData();
   const { user, profile, hasPermission, logout } = useAuth();
   const [selectedDateFilter, setSelectedDateFilter] = useState<DateFilter>('all');
+  const [isRefreshing, setIsRefreshing] = useState(false);
   
   // Debug: Log del perfil del usuario para verificar el rol
   console.log('🔍 ExecutiveDashboard - Debug perfil usuario:', {
@@ -63,6 +65,19 @@ const ExecutiveDashboard: React.FC = () => {
       // El logout redirigirá automáticamente al login
     } catch (error) {
       console.error('Error al cerrar sesión:', error);
+    }
+  };
+
+  // Función para refrescar los datos
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await fetchData();
+      console.log('✅ Datos actualizados correctamente');
+    } catch (error) {
+      console.error('❌ Error al actualizar datos:', error);
+    } finally {
+      setIsRefreshing(false);
     }
   };
   
@@ -528,6 +543,47 @@ const ExecutiveDashboard: React.FC = () => {
             </div>
           </div>
           <div className="flex items-center gap-1 sm:gap-3 flex-wrap justify-center">
+            {/* Refresh Button */}
+            <Tooltip title="Actualizar datos">
+              <Button
+                variant="outlined"
+                startIcon={<RefreshIcon />}
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                size="medium"
+                sx={{
+                  backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                  borderColor: 'rgb(34, 197, 94)',
+                  color: 'rgb(34, 197, 94)',
+                  fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                  padding: { xs: '8px 12px', sm: '8px 16px' },
+                  minWidth: { xs: '120px', sm: '140px' },
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  '&:hover': {
+                    backgroundColor: 'rgba(34, 197, 94, 0.2)',
+                    borderColor: 'rgb(21, 128, 61)',
+                  },
+                  '&:disabled': {
+                    borderColor: 'rgba(34, 197, 94, 0.5)',
+                    color: 'rgba(34, 197, 94, 0.5)',
+                  }
+                }}
+              >
+                {isRefreshing ? (
+                  <>
+                    <span className="hidden sm:inline">Actualizando...</span>
+                    <span className="sm:hidden">Cargando...</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="hidden sm:inline">Actualizar</span>
+                    <span className="sm:hidden">Actualizar</span>
+                  </>
+                )}
+              </Button>
+            </Tooltip>
+
             {/* Map Buttons */}
             <Tooltip title="Mapa de Detenidos">
               <Link to="/detainees-map?from=executive">

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Card, CardContent, CircularProgress, Tabs, Tab, Box } from '@mui/material';
-import { Dashboard as DashboardIcon, TableChart, BarChart, PieChart } from '@mui/icons-material';
+import { Card, CardContent, CircularProgress, Tabs, Tab, Box, Button, Tooltip } from '@mui/material';
+import { Dashboard as DashboardIcon, TableChart, BarChart, PieChart, Refresh as RefreshIcon } from '@mui/icons-material';
 import { type SheetData } from '../services/supabase';
 import SheetVisualization from './SheetVisualization';
 import DataTable from './DataTable';
@@ -53,7 +53,8 @@ const Dashboard: React.FC<DashboardProps> = () => {
   });
 
   // Usar el DataContext para obtener los datos de Supabase
-  const { cases, loading, error } = useData();
+  const { cases, loading, error, fetchData } = useData();
+  const [isRefreshing, setIsRefreshing] = useState(false);
   
   // Convertir los casos a formato SheetData para mantener compatibilidad
   const sheets: SheetData[] = cases.length > 0 ? [
@@ -68,6 +69,19 @@ const Dashboard: React.FC<DashboardProps> = () => {
 
   const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
     setActiveTab(newValue);
+  };
+
+  // Función para refrescar los datos
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await fetchData();
+      console.log('✅ Datos actualizados correctamente');
+    } catch (error) {
+      console.error('❌ Error al actualizar datos:', error);
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
   // Apply filters to the data
@@ -114,7 +128,37 @@ const Dashboard: React.FC<DashboardProps> = () => {
               </p>
             </div>
           </div>
-          <ExportButton sheetsData={filteredSheets} filters={filters} />
+          <div className="flex items-center gap-3">
+            {/* Refresh Button */}
+            <Tooltip title="Actualizar datos">
+              <Button
+                variant="outlined"
+                startIcon={<RefreshIcon />}
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                sx={{
+                  backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                  borderColor: 'rgb(34, 197, 94)',
+                  color: 'rgb(34, 197, 94)',
+                  fontSize: '0.875rem',
+                  padding: '8px 16px',
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  '&:hover': {
+                    backgroundColor: 'rgba(34, 197, 94, 0.2)',
+                    borderColor: 'rgb(21, 128, 61)',
+                  },
+                  '&:disabled': {
+                    borderColor: 'rgba(34, 197, 94, 0.5)',
+                    color: 'rgba(34, 197, 94, 0.5)',
+                  }
+                }}
+              >
+                {isRefreshing ? 'Actualizando...' : 'Actualizar'}
+              </Button>
+            </Tooltip>
+            <ExportButton sheetsData={filteredSheets} filters={filters} />
+          </div>
         </div>
 
         {/* View Mode Toggle */}
