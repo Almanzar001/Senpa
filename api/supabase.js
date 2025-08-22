@@ -1,13 +1,21 @@
 // API proxy para evitar problemas de CORS con Supabase
+// Ruta: /api/supabase.js maneja /api/supabase?path=...
+
 export default async function handler(req, res) {
-  const { path } = req.query;
+  const { path: apiPath, ...queryParams } = req.query;
   const supabaseUrl = 'https://nnsupabasenn.coman2uniformes.com';
-  const apiPath = Array.isArray(path) ? path.join('/') : path;
   
-  // Construir la URL completa manteniendo query parameters
-  const queryString = Object.keys(req.query)
-    .filter(key => key !== 'path') // Excluir el path del query
-    .map(key => `${key}=${encodeURIComponent(req.query[key])}`)
+  // Si no hay path, devolver error
+  if (!apiPath) {
+    return res.status(400).json({ 
+      error: 'Missing path parameter',
+      usage: '/api/supabase?path=rest/v1/table_name&select=*'
+    });
+  }
+  
+  // Construir la URL completa
+  const queryString = Object.keys(queryParams)
+    .map(key => `${key}=${encodeURIComponent(queryParams[key])}`)
     .join('&');
   
   const targetUrl = `${supabaseUrl}/${apiPath}${queryString ? '?' + queryString : ''}`;
@@ -28,7 +36,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    console.log('🔄 Supabase Proxy forwarding to:', targetUrl);
+    console.log('🔄 Supabase Proxy (simple) forwarding to:', targetUrl);
     
     // Preparar headers para Supabase
     const forwardHeaders = {
@@ -36,16 +44,16 @@ export default async function handler(req, res) {
       'Accept': 'application/json'
     };
 
-    // Agregar API key
+    // Agregar API key desde headers
     if (req.headers.apikey) {
       forwardHeaders.apikey = req.headers.apikey;
       forwardHeaders.Authorization = `Bearer ${req.headers.apikey}`;
     }
     
-    // Agregar otros headers importantes
     if (req.headers.authorization) {
       forwardHeaders.Authorization = req.headers.authorization;
     }
+    
     if (req.headers.prefer) {
       forwardHeaders.Prefer = req.headers.prefer;
     }
@@ -66,7 +74,7 @@ export default async function handler(req, res) {
       data = responseText;
     }
     
-    console.log('✅ Supabase Proxy response status:', response.status);
+    console.log('✅ Supabase Proxy (simple) response status:', response.status);
     
     // Set response headers
     if (response.headers.get('content-type')) {
@@ -76,7 +84,7 @@ export default async function handler(req, res) {
     res.status(response.status).json(data);
     
   } catch (error) {
-    console.error('❌ Supabase Proxy error:', error);
+    console.error('❌ Supabase Proxy (simple) error:', error);
     res.status(500).json({ 
       error: 'Supabase Proxy failed', 
       message: error.message,

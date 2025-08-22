@@ -5,6 +5,14 @@
   "installCommand": "npm install",
   "rewrites": [
     {
+      "source": "/rest/v1/(.*)",
+      "destination": "/api/supabase-proxy"
+    },
+    {
+      "source": "/auth/v1/(.*)", 
+      "destination": "/api/supabase-proxy"
+    },
+    {
       "source": "/((?!api|_next|_static|favicon.ico|sw.js|manifest.webmanifest|pwa-*).*)",
       "destination": "/index.html"
     }
