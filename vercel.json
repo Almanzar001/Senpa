@@ -5,6 +5,10 @@
   "installCommand": "npm install",
   "rewrites": [
     {
+      "source": "/api/supabase/rest/v1/(.*)",
+      "destination": "/api/proxy/rest/v1/$1"
+    },
+    {
       "source": "/api/supabase/(.*)",
       "destination": "/api/proxy/$1"
     },

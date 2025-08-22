@@ -1,18 +1,24 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Función para detectar si estamos en Vercel
-const isVercelProduction = () => {
-  return typeof window !== 'undefined' && 
-         (window.location.hostname.includes('vercel.app') || 
-          window.location.hostname.includes('vercel.com'));
+// Función para obtener la URL de Supabase con proxy dinámico
+const getSupabaseUrl = () => {
+  if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname;
+    if (hostname.includes('vercel.app') || hostname.includes('vercel.com')) {
+      console.log('🔄 Usando proxy de Vercel para Supabase');
+      return `${window.location.origin}/api/supabase`;
+    }
+  }
+  console.log('🔗 Usando conexión directa a Supabase');
+  return 'https://nnsupabasenn.coman2uniformes.com';
 };
 
 // Configuración del Dashboard SENPA
 export const CONFIG = {
-  // Supabase Configuration - usar proxy en Vercel para evitar CORS
-  SUPABASE_URL: isVercelProduction() 
-    ? `${window.location.origin}/api/supabase`
-    : 'https://nnsupabasenn.coman2uniformes.com',
+  // Supabase Configuration - usar proxy dinámico en Vercel
+  get SUPABASE_URL() {
+    return getSupabaseUrl();
+  },
   SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyAgCiAgICAicm9sZSI6ICJzZXJ2aWNlX3JvbGUiLAogICAgImlzcyI6ICJzdXBhYmFzZS1kZW1vIiwKICAgICJpYXQiOiAxNjQxNzY5MjAwLAogICAgImV4cCI6IDE3OTk1MzU2MDAKfQ.DaYlNEoUrrEn2Ig7tqibS-PHK5vgusbcbo7X36XVt4Q',
   
   // Lista de tablas de Supabase
@@ -52,6 +58,8 @@ export const isConfigValid = (): boolean => {
 export const createSupabaseClient = () => {
   const url = CONFIG.SUPABASE_URL;
   const key = CONFIG.SUPABASE_ANON_KEY;
+  
+  console.log('🔧 Creando cliente Supabase con URL:', url);
   
   // Si la configuración no es válida, crear cliente mock
   if (!isConfigValid()) {

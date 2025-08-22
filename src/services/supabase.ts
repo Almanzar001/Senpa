@@ -24,6 +24,9 @@ class SupabaseService {
         throw new Error('Configuración de Supabase no válida. Verifica las variables de entorno.');
       }
 
+      console.log('🔍 Obteniendo datos de tabla:', tableName);
+      console.log('🔗 URL Supabase configurada:', CONFIG.SUPABASE_URL);
+
       const { data, error } = await supabase
         .from(tableName)
         .select('*');
