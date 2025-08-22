@@ -5,39 +5,38 @@ export default async function handler(req, res) {
   // Obtener la ruta original del header 'x-vercel-forwarded-for' o del referer
   const url = new URL(req.url, `https://${req.headers.host}`);
   
-  // Vercel rewrite pasa la ruta original, necesitamos reconstruirla
-  // Las peticiones vienen como /rest/v1/tabla?query=... y se reescriben a /api/supabase-proxy
-  // Necesitamos obtener la ruta original desde algún header o la query string
+  // Obtener el path desde el query parameter que Vercel pasa en el rewrite
+  const targetPath = url.searchParams.get('path');
   
-  let targetPath = '';
+  console.log('🔍 Request URL:', req.url);
+  console.log('🔍 Target path from rewrite:', targetPath);
+  console.log('🔍 All URL search params:', url.searchParams.toString());
+  console.log('🔍 Request method:', req.method);
   
-  // Intentar obtener la ruta desde diferentes fuentes
-  if (req.headers['x-now-route-matches']) {
-    // Vercel pasa información de la ruta en este header
-    const routeInfo = JSON.parse(req.headers['x-now-route-matches']);
-    targetPath = routeInfo['0'] || '';
-  } else if (url.searchParams.has('path')) {
-    // Si pasamos el path como query parameter
-    targetPath = url.searchParams.get('path');
-    url.searchParams.delete('path'); // Removemos el path del query string
-  } else {
-    // Como último recurso, intentar extraer del referer
-    const referer = req.headers.referer || '';
-    if (referer.includes('/rest/v1/')) {
-      targetPath = referer.substring(referer.indexOf('/rest/v1/'));
-      const queryIndex = targetPath.indexOf('?');
-      if (queryIndex > 0) targetPath = targetPath.substring(0, queryIndex);
-    } else {
-      targetPath = '/rest/v1/notas_informativas'; // default para testing
+  // Verificar que tenemos el path
+  if (!targetPath) {
+    console.error('❌ No path parameter found');
+    return res.status(400).json({
+      error: 'Missing path parameter',
+      received: req.url,
+      usage: 'This endpoint should be called via Vercel rewrites'
+    });
+  }
+  
+  // Reconstruir query string sin el parámetro path
+  const remainingParams = new URLSearchParams();
+  url.searchParams.forEach((value, key) => {
+    if (key !== 'path') {
+      remainingParams.append(key, value);
     }
-  }
+  });
   
-  // Asegurar que targetPath empiece con /
-  if (targetPath && !targetPath.startsWith('/')) {
-    targetPath = `/${targetPath}`;
-  }
+  const queryString = remainingParams.toString();
+  console.log('🔍 Reconstructed query string:', queryString);
   
-  const targetUrl = `${supabaseUrl}${targetPath}${url.search}`;
+  // Construir la URL final
+  const targetUrl = `${supabaseUrl}/${targetPath}${queryString ? '?' + queryString : ''}`;
+  console.log('🎯 Final target URL:', targetUrl);
 
   // Configurar CORS headers
   res.setHeader('Access-Control-Allow-Credentials', true);
