@@ -16,7 +16,8 @@ import {
   Map as MapIcon,
   Person as PersonIcon,
   CarRental as CarIcon,
-  ManageAccounts as ManageAccountsIcon
+  ManageAccounts as ManageAccountsIcon,
+  Logout as LogoutIcon
 } from '@mui/icons-material';
 import { useData } from '../contexts/DataContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -30,8 +31,40 @@ type DateFilter = 'today' | 'yesterday' | 'thisMonth' | 'all';
 
 const ExecutiveDashboard: React.FC = () => {
   const { cases, filteredCases, loading, error, filters, setFilters } = useData();
-  const { user } = useAuth();
+  const { user, profile, hasPermission, logout } = useAuth();
   const [selectedDateFilter, setSelectedDateFilter] = useState<DateFilter>('all');
+  
+  // Debug: Log del perfil del usuario para verificar el rol
+  console.log('🔍 ExecutiveDashboard - Debug perfil usuario:', {
+    user,
+    profile,
+    roleName: profile?.role_name,
+    isViewer: profile?.role_name === 'viewer',
+    isUser: profile?.role_name === 'user',
+    shouldHideButton: profile?.role_name === 'viewer' || profile?.role_name === 'user'
+  });
+
+  // Helper function para determinar si mostrar el botón Dashboard Principal
+  const canAccessMainDashboard = () => {
+    const restrictedRoles = ['viewer', 'user'];
+    return !restrictedRoles.includes(profile?.role_name || '');
+  };
+
+  // Helper function para determinar si es un usuario con permisos restringidos
+  const isRestrictedUser = () => {
+    const restrictedRoles = ['viewer', 'user'];
+    return restrictedRoles.includes(profile?.role_name || '');
+  };
+
+  // Función para manejar el logout
+  const handleLogout = async () => {
+    try {
+      await logout();
+      // El logout redirigirá automáticamente al login
+    } catch (error) {
+      console.error('Error al cerrar sesión:', error);
+    }
+  };
   
   // Instancia del servicio de analytics para métricas centralizadas
   const analyticsService = useMemo(() => new EnvironmentalAnalyticsService(), []);
@@ -290,9 +323,12 @@ const ExecutiveDashboard: React.FC = () => {
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center text-red-600">
           <p>Error al cargar los datos: {error}</p>
-          <Link to="/dashboard" className="text-blue-600 hover:underline mt-2 inline-block">
-            Volver al Dashboard Principal
-          </Link>
+          {/* Solo mostrar el link de regreso al dashboard si tiene permisos */}
+          {canAccessMainDashboard() && (
+            <Link to="/dashboard" className="text-blue-600 hover:underline mt-2 inline-block">
+              Volver al Dashboard Principal
+            </Link>
+          )}
         </div>
       </div>
     );
@@ -388,18 +424,41 @@ const ExecutiveDashboard: React.FC = () => {
                 </Link>
               </Tooltip>
 
-              <Link to="/dashboard">
+              {/* Solo mostrar el botón Dashboard Principal si tiene permisos */}
+              {canAccessMainDashboard() && (
+                <Link to="/dashboard">
+                  <Button
+                    variant="outlined"
+                    startIcon={<BackIcon />}
+                    sx={{ 
+                      borderColor: 'rgb(71 85 105)',
+                      color: 'rgb(71 85 105)',
+                    }}
+                  >
+                    Dashboard Principal
+                  </Button>
+                </Link>
+              )}
+
+              {/* Mostrar botón de Cerrar Sesión para usuarios restringidos */}
+              {isRestrictedUser() && (
                 <Button
                   variant="outlined"
-                  startIcon={<BackIcon />}
+                  startIcon={<LogoutIcon />}
+                  onClick={handleLogout}
                   sx={{ 
-                    borderColor: 'rgb(71 85 105)',
-                    color: 'rgb(71 85 105)',
+                    borderColor: 'rgb(220, 38, 38)',
+                    color: 'rgb(220, 38, 38)',
+                    '&:hover': {
+                      borderColor: 'rgb(185, 28, 28)',
+                      color: 'rgb(185, 28, 28)',
+                      backgroundColor: 'rgba(220, 38, 38, 0.04)'
+                    }
                   }}
                 >
-                  Dashboard Principal
+                  Cerrar Sesión
                 </Button>
-              </Link>
+              )}
             </div>
           </div>
           
@@ -525,27 +584,54 @@ const ExecutiveDashboard: React.FC = () => {
             </Tooltip>
 
 
-            <Link to="/dashboard">
+            {/* Solo mostrar el botón Dashboard Principal si tiene permisos */}
+            {canAccessMainDashboard() && (
+              <Link to="/dashboard">
+                <Button
+                  variant="outlined"
+                  startIcon={<BackIcon />}
+                  size="small"
+                  sx={{ 
+                    borderColor: 'rgb(71 85 105)',
+                    color: 'rgb(71 85 105)',
+                    fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                    padding: { xs: '4px 8px', sm: '6px 16px' },
+                    '&:hover': {
+                      borderColor: 'rgb(51 65 85)',
+                      color: 'rgb(51 65 85)',
+                      backgroundColor: 'rgba(71, 85, 105, 0.04)'
+                    }
+                  }}
+                >
+                  <span className="hidden sm:inline">Dashboard Principal</span>
+                  <span className="sm:hidden">Principal</span>
+                </Button>
+              </Link>
+            )}
+
+            {/* Mostrar botón de Cerrar Sesión para usuarios restringidos */}
+            {isRestrictedUser() && (
               <Button
                 variant="outlined"
-                startIcon={<BackIcon />}
+                startIcon={<LogoutIcon />}
+                onClick={handleLogout}
                 size="small"
                 sx={{ 
-                  borderColor: 'rgb(71 85 105)',
-                  color: 'rgb(71 85 105)',
+                  borderColor: 'rgb(220, 38, 38)',
+                  color: 'rgb(220, 38, 38)',
                   fontSize: { xs: '0.75rem', sm: '0.875rem' },
                   padding: { xs: '4px 8px', sm: '6px 16px' },
                   '&:hover': {
-                    borderColor: 'rgb(51 65 85)',
-                    color: 'rgb(51 65 85)',
-                    backgroundColor: 'rgba(71, 85, 105, 0.04)'
+                    borderColor: 'rgb(185, 28, 28)',
+                    color: 'rgb(185, 28, 28)',
+                    backgroundColor: 'rgba(220, 38, 38, 0.04)'
                   }
                 }}
               >
-                <span className="hidden sm:inline">Dashboard Principal</span>
-                <span className="sm:hidden">Principal</span>
+                <span className="hidden sm:inline">Cerrar Sesión</span>
+                <span className="sm:hidden">Salir</span>
               </Button>
-            </Link>
+            )}
           </div>
         </div>
 

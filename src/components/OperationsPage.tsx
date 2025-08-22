@@ -73,7 +73,7 @@ const OperationsPage: React.FC = () => {
     const environmentalCases = (notasData as NotaInformativa[]).map(nota => ({
       numeroCaso: nota.numeroCaso,
       fecha: nota.fecha,
-      hora: nota.hora,
+      hora: nota.hora || '',
       provincia: nota.provinciamunicipio || '',
       localidad: nota.localidad || '',
       region: nota.region || '',
@@ -217,8 +217,16 @@ const OperationsPage: React.FC = () => {
           case 'detenidos':
             const detenidosDataRaw = await supabaseCrudService.getAll('detenidos', {
               limit: 500,
-              fields: ['id', 'numerocaso', 'fecha', 'hora', 'provinciamunicipio', 'localidad', 'region', 'nombre', 'motivodetencion', 'estadoproceso']
+              fields: ['id', 'numerocaso', 'fecha', 'provinciamunicipio', 'nombre']
             });
+            
+            // Debug: Ver la estructura real de la tabla detenidos
+            if (detenidosDataRaw && detenidosDataRaw.length > 0) {
+              console.log('🔍 DEBUG - Campos disponibles en tabla detenidos:', Object.keys(detenidosDataRaw[0]));
+              console.log('🔍 DEBUG - Primer registro detenidos:', detenidosDataRaw[0]);
+              console.log('🔍 DEBUG - Valor de provinciamunicipio:', detenidosDataRaw[0].provinciamunicipio);
+            }
+            
             let filteredDetenidosData = detenidosDataRaw as Detenido[];
             
             // Aplicar filtros persistidos si existen

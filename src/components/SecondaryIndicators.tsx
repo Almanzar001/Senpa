@@ -21,8 +21,10 @@ const SecondaryIndicators: React.FC<SecondaryIndicatorsProps> = ({ cases }) => {
     if (!cases || cases.length === 0) {
       return {
         patrollasVsOperativos: { patrullas: 0, operativos: 0, totalActividades: 0 },
-        provinciasActivas: [],
-        regionesActivas: [],
+        provinciasActivasOperativos: [],
+        provinciasActivasPatrullas: [],
+        regionesActivasOperativos: [],
+        regionesActivasPatrullas: [],
         horasFrecuentes: [],
         diasActivos: [],
         eficienciaOperativos: 0,
@@ -35,26 +37,50 @@ const SecondaryIndicators: React.FC<SecondaryIndicatorsProps> = ({ cases }) => {
     const operativos = cases.filter(c => c.tipoActividad.toLowerCase().includes('operativo')).length;
     const totalActividades = patrullas + operativos;
 
-    // 2. Provincias más activas
-    const provinciaCount = new Map<string, number>();
+    // 2. Provincias más activas - OPERATIVOS
+    const provinciaOperativosCount = new Map<string, number>();
     cases.forEach(c => {
-      if (c.provincia) {
-        provinciaCount.set(c.provincia, (provinciaCount.get(c.provincia) || 0) + 1);
+      if (c.provincia && c.tipoActividad && c.tipoActividad.toLowerCase().includes('operativo')) {
+        provinciaOperativosCount.set(c.provincia, (provinciaOperativosCount.get(c.provincia) || 0) + 1);
       }
     });
-    const provinciasActivas = Array.from(provinciaCount.entries())
+    const provinciasActivasOperativos = Array.from(provinciaOperativosCount.entries())
       .map(([provincia, count]) => ({ provincia, operaciones: count }))
       .sort((a, b) => b.operaciones - a.operaciones)
       .slice(0, 3);
 
-    // 2.1. Regiones más activas
-    const regionCount = new Map<string, number>();
+    // 2.1. Provincias más activas - PATRULLAS
+    const provinciaPatrullasCount = new Map<string, number>();
     cases.forEach(c => {
-      if (c.region) {
-        regionCount.set(c.region, (regionCount.get(c.region) || 0) + 1);
+      if (c.provincia && c.tipoActividad && c.tipoActividad.toLowerCase().includes('patrulla')) {
+        provinciaPatrullasCount.set(c.provincia, (provinciaPatrullasCount.get(c.provincia) || 0) + 1);
       }
     });
-    const regionesActivas = Array.from(regionCount.entries())
+    const provinciasActivasPatrullas = Array.from(provinciaPatrullasCount.entries())
+      .map(([provincia, count]) => ({ provincia, operaciones: count }))
+      .sort((a, b) => b.operaciones - a.operaciones)
+      .slice(0, 3);
+
+    // 2.2. Regiones más activas - OPERATIVOS
+    const regionOperativosCount = new Map<string, number>();
+    cases.forEach(c => {
+      if (c.region && c.tipoActividad && c.tipoActividad.toLowerCase().includes('operativo')) {
+        regionOperativosCount.set(c.region, (regionOperativosCount.get(c.region) || 0) + 1);
+      }
+    });
+    const regionesActivasOperativos = Array.from(regionOperativosCount.entries())
+      .map(([region, count]) => ({ region, operaciones: count }))
+      .sort((a, b) => b.operaciones - a.operaciones)
+      .slice(0, 3);
+
+    // 2.3. Regiones más activas - PATRULLAS
+    const regionPatrullasCount = new Map<string, number>();
+    cases.forEach(c => {
+      if (c.region && c.tipoActividad && c.tipoActividad.toLowerCase().includes('patrulla')) {
+        regionPatrullasCount.set(c.region, (regionPatrullasCount.get(c.region) || 0) + 1);
+      }
+    });
+    const regionesActivasPatrullas = Array.from(regionPatrullasCount.entries())
       .map(([region, count]) => ({ region, operaciones: count }))
       .sort((a, b) => b.operaciones - a.operaciones)
       .slice(0, 3);
@@ -120,8 +146,10 @@ const SecondaryIndicators: React.FC<SecondaryIndicatorsProps> = ({ cases }) => {
 
     return {
       patrollasVsOperativos: { patrullas, operativos, totalActividades },
-      provinciasActivas,
-      regionesActivas,
+      provinciasActivasOperativos,
+      provinciasActivasPatrullas,
+      regionesActivasOperativos,
+      regionesActivasPatrullas,
       horasFrecuentes,
       diasActivos,
       eficienciaOperativos,
@@ -173,13 +201,13 @@ const SecondaryIndicators: React.FC<SecondaryIndicatorsProps> = ({ cases }) => {
       )
     },
     {
-      title: 'Provincias Más Activas',
+      title: 'Provincias Operativos',
       icon: LocationIcon,
       color: 'text-green-600',
       bgColor: 'bg-green-50',
       content: (
         <div className="space-y-2">
-          {insights.provinciasActivas.map((provincia, index) => (
+          {insights.provinciasActivasOperativos.map((provincia, index) => (
             <div key={provincia.provincia} className="flex justify-between items-center">
               <div className="flex items-center">
                 <div className={`w-2 h-2 rounded-full mr-2 ${
@@ -196,17 +224,64 @@ const SecondaryIndicators: React.FC<SecondaryIndicatorsProps> = ({ cases }) => {
               />
             </div>
           ))}
+          {insights.provinciasActivasOperativos.length === 0 && (
+            <div className="text-center py-4 text-gray-500 text-sm">
+              No hay datos de operativos por provincia
+            </div>
+          )}
+          <div className="pt-2 border-t border-green-200">
+            <Typography variant="caption" className="text-green-700">
+              🎯 Solo operativos por provincia
+            </Typography>
+          </div>
         </div>
       )
     },
     {
-      title: 'Regiones Más Activas',
+      title: 'Provincias Patrullas',
+      icon: LocationIcon,
+      color: 'text-blue-600',
+      bgColor: 'bg-blue-50',
+      content: (
+        <div className="space-y-2">
+          {insights.provinciasActivasPatrullas.map((provincia, index) => (
+            <div key={provincia.provincia} className="flex justify-between items-center">
+              <div className="flex items-center">
+                <div className={`w-2 h-2 rounded-full mr-2 ${
+                  index === 0 ? 'bg-blue-500' : 
+                  index === 1 ? 'bg-blue-400' : 'bg-blue-300'
+                }`} />
+                <span className="text-sm">{provincia.provincia}</span>
+              </div>
+              <Chip 
+                label={provincia.operaciones}
+                size="small"
+                color="primary"
+                variant="outlined"
+              />
+            </div>
+          ))}
+          {insights.provinciasActivasPatrullas.length === 0 && (
+            <div className="text-center py-4 text-gray-500 text-sm">
+              No hay datos de patrullas por provincia
+            </div>
+          )}
+          <div className="pt-2 border-t border-blue-200">
+            <Typography variant="caption" className="text-blue-700">
+              🚔 Solo patrullas por provincia
+            </Typography>
+          </div>
+        </div>
+      )
+    },
+    {
+      title: 'Regiones Operativos',
       icon: RegionIcon,
       color: 'text-teal-600',
       bgColor: 'bg-teal-50',
       content: (
         <div className="space-y-2">
-          {insights.regionesActivas.map((region, index) => (
+          {insights.regionesActivasOperativos.map((region, index) => (
             <div key={region.region} className="flex justify-between items-center">
               <div className="flex items-center">
                 <div className={`w-2 h-2 rounded-full mr-2 ${
@@ -226,14 +301,54 @@ const SecondaryIndicators: React.FC<SecondaryIndicatorsProps> = ({ cases }) => {
               />
             </div>
           ))}
-          {insights.regionesActivas.length === 0 && (
+          {insights.regionesActivasOperativos.length === 0 && (
             <div className="text-center py-4 text-gray-500 text-sm">
-              No hay datos de regiones disponibles
+              No hay datos de operativos por región
             </div>
           )}
           <div className="pt-2 border-t border-teal-200">
             <Typography variant="caption" className="text-teal-700">
-              🗺️ Cobertura territorial por región
+              🎯 Solo operativos por región
+            </Typography>
+          </div>
+        </div>
+      )
+    },
+    {
+      title: 'Regiones Patrullas',
+      icon: RegionIcon,
+      color: 'text-indigo-600',
+      bgColor: 'bg-indigo-50',
+      content: (
+        <div className="space-y-2">
+          {insights.regionesActivasPatrullas.map((region, index) => (
+            <div key={region.region} className="flex justify-between items-center">
+              <div className="flex items-center">
+                <div className={`w-2 h-2 rounded-full mr-2 ${
+                  index === 0 ? 'bg-indigo-500' : 
+                  index === 1 ? 'bg-indigo-400' : 'bg-indigo-300'
+                }`} />
+                <span className="text-sm font-medium">Región {region.region}</span>
+              </div>
+              <Chip 
+                label={region.operaciones}
+                size="small"
+                sx={{ 
+                  backgroundColor: 'rgb(99 102 241)', 
+                  color: 'white',
+                  '& .MuiChip-label': { fontSize: '0.75rem', fontWeight: 'bold' }
+                }}
+              />
+            </div>
+          ))}
+          {insights.regionesActivasPatrullas.length === 0 && (
+            <div className="text-center py-4 text-gray-500 text-sm">
+              No hay datos de patrullas por región
+            </div>
+          )}
+          <div className="pt-2 border-t border-indigo-200">
+            <Typography variant="caption" className="text-indigo-700">
+              🚓 Solo patrullas por región
             </Typography>
           </div>
         </div>

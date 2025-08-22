@@ -33,8 +33,6 @@ const FIELD_MAPPING: Record<string, string> = {
   
   // Campos específicos de detenidos
   'nombre': 'nombre',
-  'motivoDetencion': 'motivodetencion',
-  'estadoProceso': 'estadoproceso',
   
   // Campos específicos de vehiculos
   'tipo': 'tipo',
@@ -101,12 +99,6 @@ class SupabaseCrudService {
           break;
         case 'areatematica':
           uiField = 'areaTemática';
-          break;
-        case 'motivodetencion':
-          uiField = 'motivoDetencion';
-          break;
-        case 'estadoproceso':
-          uiField = 'estadoProceso';
           break;
         case 'tipovehiculo':
           uiField = 'tipoVehiculo';

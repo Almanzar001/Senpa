@@ -207,8 +207,6 @@ const SimpleEditModal: React.FC<SimpleEditModalProps> = ({
       resultado: 'Resultado',
       observaciones: 'Observaciones',
       nombre: 'Nombre',
-      motivoDetencion: 'Motivo de Detención',
-      estadoProceso: 'Estado del Proceso',
       tipo: 'Tipo',
       marca: 'Marca',
       color: 'Color',

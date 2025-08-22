@@ -194,8 +194,6 @@ const CaseDetailsModal: React.FC<CaseDetailsModalProps> = ({
         {tableType === 'detenidos' && (
           <Box sx={{ mb: 3 }}>
             {renderDetailRow('Nombre', (item as Detenido).nombre)}
-            {renderDetailRow('Motivo de Detención', (item as Detenido).motivoDetencion)}
-            {renderDetailRow('Estado del Proceso', (item as Detenido).estadoProceso, 'warning')}
           </Box>
         )}
 

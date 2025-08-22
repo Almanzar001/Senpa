@@ -98,9 +98,7 @@ const GenericTable: React.FC<GenericTableProps> = ({
         const detenido = item as Detenido;
         return [
           ...commonFields, 
-          detenido.nombre, 
-          detenido.motivoDetencion, 
-          detenido.estadoProceso,
+          detenido.nombre,
           detenido.observaciones
         ];
       case 'vehiculos':
@@ -163,7 +161,7 @@ const GenericTable: React.FC<GenericTableProps> = ({
         }
         return ['numeroCaso', 'fecha', 'provinciamunicipio', 'localidad', 'tipoActividad', 'notificados', 'procuraduria'];
       case 'detenidos':
-        return ['numeroCaso', 'fecha', 'provinciamunicipio', 'nombre', 'motivoDetencion', 'estadoProceso'];
+        return ['numeroCaso', 'fecha', 'provinciamunicipio', 'nombre'];
       case 'vehiculos':
         return ['numeroCaso', 'tipo', 'marca', 'color', 'provinciamunicipio', 'fecha'];
       case 'incautaciones':
@@ -183,8 +181,6 @@ const GenericTable: React.FC<GenericTableProps> = ({
       notificados: 'Notificados',
       procuraduria: 'Procuraduría',
       nombre: 'Nombre',
-      motivoDetencion: 'Motivo de Detención',
-      estadoProceso: 'Estado del Proceso',
       tipo: 'Tipo',
       marca: 'Marca',
       color: 'Color',
@@ -237,7 +233,7 @@ const GenericTable: React.FC<GenericTableProps> = ({
     }
 
     // Handle status/state fields with chips
-    if (column === 'estado' || column === 'estadoProceso') {
+    if (column === 'estado') {
       const getStatusColor = (status: string) => {
         const statusLower = status.toLowerCase();
         if (statusLower.includes('activo') || statusLower.includes('proceso')) return 'warning';

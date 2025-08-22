@@ -4,7 +4,7 @@ export interface User {
   id: string;
   email: string;
   name: string;
-  role: 'superadmin' | 'admin' | 'user';
+  role: 'superadmin' | 'admin' | 'user' | 'viewer';
 }
 
 export interface AuthResult {
@@ -82,7 +82,7 @@ class SimpleAuthService {
         id: user.id,
         email: user.email,
         name: user.full_name,
-        role: user.role as 'superadmin' | 'admin' | 'user'
+        role: user.role as 'superadmin' | 'admin' | 'user' | 'viewer'
       };
 
       // Generar token simple
@@ -134,6 +134,13 @@ class SimpleAuthService {
         password: 'SenpaOp2025!',
         name: 'Operador SENPA',
         role: 'user' as const
+      },
+      {
+        id: 'viewer-fallback',
+        email: 'viewer@senpa.gov.do',
+        password: 'SenpaViewer2025!',
+        name: 'Viewer SENPA',
+        role: 'viewer' as const
       }
     ];
 

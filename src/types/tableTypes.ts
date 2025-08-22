@@ -30,8 +30,6 @@ export interface Detenido {
   localidad?: string; // Puede o no existir en detenidos
   region?: string; // Puede o no existir en detenidos
   nombre: string;
-  motivoDetencion: string;
-  estadoProceso: string;
   observaciones?: string;
   nota?: string;
 }
@@ -95,7 +93,7 @@ export const TABLE_METADATA: Record<TableType, TableMetaData> = {
     tableName: 'detenidos',
     displayName: 'Detenidos',
     primaryKey: 'id',
-    editableFields: ['fecha', 'hora', 'provinciamunicipio', 'nombre', 'motivoDetencion', 'estadoProceso', 'observaciones', 'nota'],
+    editableFields: ['fecha', 'provinciamunicipio', 'nombre', 'observaciones', 'nota'],
     requiredFields: ['numeroCaso', 'fecha', 'nombre']
   },
   vehiculos: {
