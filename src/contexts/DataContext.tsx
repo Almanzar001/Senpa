@@ -24,6 +24,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [sheets, setSheets] = useState<SheetData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [refreshCounter, setRefreshCounter] = useState(0);
   const [filters, setFilters] = useState<EnvironmentalFilters>({
     dateFrom: '',
     dateTo: '',
@@ -53,19 +54,20 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Si hay tablas específicas configuradas, usarlas
       if (CONFIG.SUPABASE_TABLES && CONFIG.SUPABASE_TABLES.length > 0) {
         tablesData = await supabaseService.getMultipleTables(CONFIG.SUPABASE_TABLES);
-        setSheets(tablesData);
       } else {
         // Intentar obtener todas las tablas disponibles
         const allTables = await supabaseService.getAllTables();
         if (allTables.length > 0) {
           tablesData = await supabaseService.getMultipleTables(allTables);
-          setSheets(tablesData);
         } else {
           setError("No se encontraron tablas en Supabase. Configura SUPABASE_TABLES en config.ts");
           setLoading(false);
           return;
         }
       }
+
+      // Agregar refreshId a los datos para forzar re-renders
+      setSheets(tablesData.map(sheet => ({ ...sheet, refreshId: refreshCounter })));
 
       // Ejecutar validación de integridad de datos al cargar
       const validation = analyticsService.validateDataIntegrity(tablesData);
@@ -77,13 +79,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       console.log('📊 Estadísticas de datos:', validation.stats);
       
+      // Incrementar el contador para forzar re-renders
+      setRefreshCounter(prev => prev + 1);
       setError(null);
     } catch (err: any) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [refreshCounter]);
 
   useEffect(() => {
     fetchData();
@@ -94,15 +98,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return [];
     }
     
-    // If analyticsService has cases, use them (they include updates)
-    // Otherwise, analyze sheets data (initial load)
-    const existingCases = Array.from(analyticsService.cases.values());
-    if (existingCases.length > 0) {
-      return existingCases;
-    } else {
-      return analyticsService.analyzeSheetsData(sheets);
-    }
-  }, [sheets, analyticsService]);
+    // Siempre re-analizar cuando los sheets cambien para garantizar datos frescos
+    const result = analyticsService.analyzeSheetsData(sheets);
+    console.log('🔄 DataContext - Re-analizando datos:', {
+      sheetsCount: sheets.length,
+      casesFound: result.length,
+      refreshCounter
+    });
+    return result;
+  }, [sheets, analyticsService, refreshCounter]);
 
   const filteredCases = useMemo(() => {
     const result = analyticsService.applyFilters(cases, filters);

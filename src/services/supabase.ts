@@ -13,6 +13,7 @@ export interface SheetData {
   name: string;
   data: (string | number)[][];
   lastUpdated?: number;
+  refreshId?: number;
 }
 
 class SupabaseService {
