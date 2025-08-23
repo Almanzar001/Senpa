@@ -40,8 +40,15 @@ export const useNotaFetch = (): UseNotaFetchReturn => {
         setNota('');
       } else {
         console.log('✅ Nota obtenida para numerocaso:', numeroCaso, 'Datos:', data); // Debug log
+        
+        // Handle both single object and array responses
+        const record = Array.isArray(data) ? data[0] : data;
+        console.log('📄 Registro procesado:', record);
+        
         // Try multiple possible column names for the nota
-        const notaContent = data?.nota || data?.notas || data?.observaciones || data?.resultado || data?.descripcion || '';
+        const notaContent = record?.nota || record?.notas || record?.observaciones || record?.resultado || record?.descripcion || '';
+        console.log('📝 Contenido de nota encontrado:', notaContent);
+        
         setNota(notaContent || 'No hay nota disponible para este caso.');
         setError(null);
       }
