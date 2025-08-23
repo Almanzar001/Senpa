@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect, useState } from 'react';
 import { Card, CardContent, Typography } from '@mui/material';
 import { 
   Security as SecurityIcon,
@@ -17,6 +17,13 @@ interface SpecificMetricsProps {
 }
 
 const SpecificMetrics: React.FC<SpecificMetricsProps> = ({ sheetsData, filters }) => {
+  // Estado para forzar re-renders cuando los datos se actualicen
+  const [refreshKey, setRefreshKey] = useState(0);
+  
+  // Efecto para detectar cambios en los datos y forzar recálculo
+  useEffect(() => {
+    setRefreshKey(prev => prev + 1);
+  }, [sheetsData]);
   
   const metrics = useMemo(() => {
     if (!sheetsData || sheetsData.length === 0) {
@@ -158,7 +165,7 @@ const SpecificMetrics: React.FC<SpecificMetricsProps> = ({ sheetsData, filters }
       casosResueltos,
       promedioMensual
     };
-  }, [sheetsData, filters]);
+  }, [sheetsData, filters, refreshKey]);
 
   const metricCards = [
     {

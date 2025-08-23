@@ -12,6 +12,7 @@ export interface DatabaseRow {
 export interface SheetData {
   name: string;
   data: (string | number)[][];
+  lastUpdated?: number;
 }
 
 class SupabaseService {

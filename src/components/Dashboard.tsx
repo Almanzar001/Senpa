@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CircularProgress, Tabs, Tab, Box, Button, Tooltip } from '@mui/material';
 import { Dashboard as DashboardIcon, TableChart, BarChart, PieChart, Refresh as RefreshIcon } from '@mui/icons-material';
 import { type SheetData } from '../services/supabase';
@@ -55,6 +55,14 @@ const Dashboard: React.FC<DashboardProps> = () => {
   // Usar el DataContext para obtener los datos de Supabase
   const { cases, loading, error, fetchData } = useData();
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastUpdate, setLastUpdate] = useState(Date.now());
+  
+  // Efecto para actualizar el timestamp cuando cambien los casos
+  useEffect(() => {
+    if (cases.length > 0) {
+      setLastUpdate(Date.now());
+    }
+  }, [cases]);
   
   // Convertir los casos a formato SheetData para mantener compatibilidad
   const sheets: SheetData[] = cases.length > 0 ? [
@@ -63,7 +71,8 @@ const Dashboard: React.FC<DashboardProps> = () => {
       data: [
         Object.keys(cases[0]),
         ...cases.map(caso => Object.values(caso))
-      ]
+      ],
+      lastUpdated: lastUpdate // Agregar timestamp para forzar re-renders
     }
   ] : [];
 
@@ -76,6 +85,7 @@ const Dashboard: React.FC<DashboardProps> = () => {
     setIsRefreshing(true);
     try {
       await fetchData();
+      setLastUpdate(Date.now()); // Actualizar timestamp para forzar re-render
       console.log('✅ Datos actualizados correctamente');
     } catch (error) {
       console.error('❌ Error al actualizar datos:', error);

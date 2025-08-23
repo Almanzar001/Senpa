@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect, useState } from 'react';
 import { Card, CardContent, Typography, Chip } from '@mui/material';
 import { 
   Timeline as TimelineIcon,
@@ -15,6 +15,14 @@ interface OperationalSummaryProps {
 }
 
 const OperationalSummary: React.FC<OperationalSummaryProps> = ({ sheetsData, filters }) => {
+  // Estado para forzar re-renders cuando los datos se actualicen
+  const [refreshKey, setRefreshKey] = useState(0);
+  
+  // Efecto para detectar cambios en los datos y forzar recálculo
+  useEffect(() => {
+    setRefreshKey(prev => prev + 1);
+  }, [sheetsData]);
+  
   const summary = useMemo(() => {
     if (!sheetsData || sheetsData.length === 0) {
       return {
@@ -104,7 +112,7 @@ const OperationalSummary: React.FC<OperationalSummaryProps> = ({ sheetsData, fil
       personalEnServicio,
       reportesPendientes
     };
-  }, [sheetsData, filters]);
+  }, [sheetsData, filters, refreshKey]);
 
   const getEstadoColor = (estado: string) => {
     if (estado.includes('resuelto') || estado.includes('completado')) return 'success';
