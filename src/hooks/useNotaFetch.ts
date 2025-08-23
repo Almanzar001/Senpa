@@ -39,7 +39,7 @@ export const useNotaFetch = (): UseNotaFetchReturn => {
         }
         setNota('');
       } else {
-        console.log('Datos obtenidos:', data); // Debug log
+        console.log('Datos obtenidos para numerocaso:', numeroCaso, data); // Debug log
         // Try multiple possible column names for the nota
         const notaContent = data?.nota || data?.notas || data?.observaciones || data?.resultado || data?.descripcion || '';
         setNota(notaContent || 'No hay nota disponible para este caso.');
