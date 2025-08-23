@@ -5,9 +5,9 @@ const getSupabaseUrl = () => {
   if (typeof window !== 'undefined') {
     const hostname = window.location.hostname;
     if (hostname.includes('vercel.app') || hostname.includes('vercel.com')) {
-      console.log('🔄 Usando Vercel como proxy transparente para Supabase');
-      // Usar la URL de Vercel como si fuera Supabase - los rewrites redirigirán a nuestro proxy
-      return window.location.origin;
+      console.log('🔄 Usando proxy de Vercel para Supabase');
+      // En Vercel, usar el proxy a través de los rewrites configurados
+      return `${window.location.origin}`;
     }
   }
   console.log('🔗 Usando conexión directa a Supabase');
